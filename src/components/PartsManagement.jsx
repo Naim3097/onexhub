@@ -17,7 +17,7 @@ function PartsManagement() {
 
   const lowStockCount = getLowStockParts().length
 
-  if (loading) {
+  if (loading && parts.length === 0) {
     return (
       <div className="touch-spacing">
         <div className="card">

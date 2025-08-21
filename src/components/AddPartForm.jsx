@@ -16,6 +16,7 @@ function AddPartForm({ onClose }) {
   const [imagePreview, setImagePreview] = useState('')
   const [errors, setErrors] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isProcessingImage, setIsProcessingImage] = useState(false)
 
   const validateForm = () => {
     const newErrors = {}
@@ -74,48 +75,68 @@ function AddPartForm({ onClose }) {
       }
 
       setSelectedFile(file)
+      setIsProcessingImage(true)
       
-      // Create preview URL and compress image
+      // Create preview URL and compress image (optimized for mobile)
       const reader = new FileReader()
       reader.onload = (e) => {
         const img = new Image()
         img.onload = () => {
-          // Create canvas for compression
-          const canvas = document.createElement('canvas')
-          const ctx = canvas.getContext('2d')
-          
-          // Calculate new dimensions (max 800px width/height)
-          let { width, height } = img
-          const maxDimension = 800
-          
-          if (width > maxDimension || height > maxDimension) {
-            if (width > height) {
-              height = (height * maxDimension) / width
-              width = maxDimension
-            } else {
-              width = (width * maxDimension) / height
-              height = maxDimension
+          // Use setTimeout to prevent UI blocking (shorter delay)
+          setTimeout(() => {
+            try {
+              // Create canvas for compression
+              const canvas = document.createElement('canvas')
+              const ctx = canvas.getContext('2d')
+              
+              // Calculate new dimensions (optimized for speed)
+              let { width, height } = img
+              const maxDimension = window.innerWidth < 768 ? 400 : 600 // Even smaller for speed
+              
+              if (width > maxDimension || height > maxDimension) {
+                if (width > height) {
+                  height = (height * maxDimension) / width
+                  width = maxDimension
+                } else {
+                  width = (width * maxDimension) / height
+                  height = maxDimension
+                }
+              }
+              
+              canvas.width = width
+              canvas.height = height
+              
+              // Draw and compress (faster settings)
+              ctx.drawImage(img, 0, 0, width, height)
+              
+              // Faster compression settings
+              const quality = window.innerWidth < 768 ? 0.6 : 0.8
+              const compressedDataUrl = canvas.toDataURL('image/jpeg', quality)
+              
+              // More lenient size limits for speed
+              const sizeLimit = window.innerWidth < 768 ? 400000 : 600000
+              if (compressedDataUrl.length > sizeLimit) {
+                // Try one more time with higher compression
+                const smallerDataUrl = canvas.toDataURL('image/jpeg', 0.4)
+                if (smallerDataUrl.length > sizeLimit) {
+                  alert('Image is too large. Please use a smaller image.')
+                  clearImage()
+                  return
+                }
+                setImagePreview(smallerDataUrl)
+                setFormData({ ...formData, gambar: smallerDataUrl })
+              } else {
+                setImagePreview(compressedDataUrl)
+                setFormData({ ...formData, gambar: compressedDataUrl })
+              }
+            } catch (error) {
+              console.error('Image processing error:', error)
+              alert('Error processing image. Please try a different image.')
+              clearImage()
+            } finally {
+              setIsProcessingImage(false)
             }
-          }
-          
-          canvas.width = width
-          canvas.height = height
-          
-          // Draw and compress
-          ctx.drawImage(img, 0, 0, width, height)
-          
-          // Convert to base64 with compression (quality 0.7)
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7)
-          
-          // Check if still too large (Firebase limit is ~1MB for the whole document)
-          if (compressedDataUrl.length > 500000) { // 500KB limit for safety
-            alert('Image is still too large after compression. Please use a smaller image.')
-            clearImage()
-            return
-          }
-          
-          setImagePreview(compressedDataUrl)
-          setFormData({ ...formData, gambar: compressedDataUrl })
+          }, 50) // Reduced from 100ms to 50ms
         }
         img.src = e.target.result
       }
@@ -126,6 +147,7 @@ function AddPartForm({ onClose }) {
   const clearImage = () => {
     setSelectedFile(null)
     setImagePreview('')
+    setIsProcessingImage(false)
     setFormData({ ...formData, gambar: '' })
     // Reset file input
     const fileInput = document.getElementById('image-upload')
@@ -271,6 +293,16 @@ function AddPartForm({ onClose }) {
               </div>
             )}
 
+            {/* Image Processing Indicator */}
+            {isProcessingImage && (
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                <div className="flex items-center gap-2">
+                  <div className="loading-spinner"></div>
+                  <span className="text-sm text-blue-700">Processing image for mobile...</span>
+                </div>
+              </div>
+            )}
+
             {/* File Upload Option */}
             <div className="space-y-3">
               <div>
@@ -283,12 +315,12 @@ function AddPartForm({ onClose }) {
                 />
                 <label 
                   htmlFor="image-upload"
-                  className="inline-flex items-center px-4 py-2 border border-black-25 rounded-md text-sm font-medium text-primary-black bg-primary-white hover:bg-black-5 cursor-pointer transition-colors"
+                  className={`inline-flex items-center px-4 py-2 border border-black-25 rounded-md text-sm font-medium text-primary-black bg-primary-white hover:bg-black-5 cursor-pointer transition-colors ${isProcessingImage ? 'opacity-50 pointer-events-none' : ''}`}
                 >
-                  Upload from Device
+                  {isProcessingImage ? 'Processing...' : 'Upload from Device'}
                 </label>
                 <p className="text-xs text-black-75 mt-1">
-                  Max 5MB • JPG, PNG, GIF supported • Images automatically compressed
+                  Max 5MB • JPG, PNG, GIF supported • Auto-compressed for mobile
                 </p>
               </div>
 

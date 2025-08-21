@@ -18,7 +18,20 @@ export const useFirebaseCollection = (collectionName) => {
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    // Real-time listener for collection changes
+    // Load localStorage data immediately for instant display
+    const localData = localStorage.getItem(collectionName)
+    if (localData) {
+      try {
+        const parsedData = JSON.parse(localData)
+        console.log(`Loaded ${parsedData.length} ${collectionName} from cache`)
+        setData(parsedData)
+        setLoading(false) // Show cached data immediately
+      } catch (e) {
+        console.error('Error parsing localStorage data:', e)
+      }
+    }
+
+    // Then set up real-time listener for fresh data
     const q = query(collection(db, collectionName), orderBy('createdAt', 'desc'))
     
     const unsubscribe = onSnapshot(q, 
@@ -27,22 +40,21 @@ export const useFirebaseCollection = (collectionName) => {
         querySnapshot.forEach((doc) => {
           items.push({ id: doc.id, ...doc.data() })
         })
+        
+        console.log(`Loaded ${items.length} ${collectionName} from Firebase`)
         setData(items)
         setLoading(false)
+        
+        // Update localStorage with fresh data
+        localStorage.setItem(collectionName, JSON.stringify(items))
       },
       (err) => {
         console.error(`Error fetching ${collectionName}:`, err)
         setError(err.message)
-        setLoading(false)
         
-        // Fallback to localStorage if Firebase fails
-        const localData = localStorage.getItem(collectionName)
-        if (localData) {
-          try {
-            setData(JSON.parse(localData))
-          } catch (e) {
-            console.error('Error parsing localStorage data:', e)
-          }
+        // Only show loading if we don't have cached data
+        if (data.length === 0) {
+          setLoading(false)
         }
       }
     )

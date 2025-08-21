@@ -35,7 +35,7 @@ function InvoiceHistory() {
     })
   }
 
-  if (loading) {
+  if (loading && invoices.length === 0) {
     return (
       <div className="touch-spacing">
         <div className="card">
