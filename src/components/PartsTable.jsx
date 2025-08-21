@@ -3,9 +3,14 @@ import { usePartsContext } from '../context/PartsContext'
 function PartsTable({ parts, onEditPart }) {
   const { deletePart } = usePartsContext()
 
-  const handleDelete = (part) => {
+  const handleDelete = async (part) => {
     if (window.confirm(`Are you sure you want to delete ${part.namaProduk}?`)) {
-      deletePart(part.id)
+      try {
+        await deletePart(part.id)
+      } catch (error) {
+        console.error('Error deleting part:', error)
+        alert('Error deleting part. Please try again.')
+      }
     }
   }
 

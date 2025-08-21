@@ -38,7 +38,7 @@ function EditPartModal({ part, onClose }) {
     setIsSubmitting(true)
     
     try {
-      updatePart(part.id, {
+      await updatePart(part.id, {
         ...formData,
         harga: parseFloat(formData.harga),
         unitStock: parseInt(formData.unitStock)

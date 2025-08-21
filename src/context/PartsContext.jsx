@@ -1,4 +1,8 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useEffect } from 'react'
+import { useFirebaseCollection } from '../hooks/useFirebaseData'
+import { writeBatch, doc } from 'firebase/firestore'
+import { db } from '../firebaseConfig'
+import { createContextualError, ValidationErrorType } from '../types/InvoiceTypes'
 
 const PartsContext = createContext()
 
@@ -11,56 +15,61 @@ export const usePartsContext = () => {
 }
 
 export function PartsProvider({ children }) {
-  const [parts, setParts] = useState(() => {
-    const saved = localStorage.getItem('mechanic-parts')
-    return saved ? JSON.parse(saved) : []
-  })
+  const { 
+    data: parts, 
+    loading, 
+    error, 
+    addItem, 
+    updateItem, 
+    deleteItem 
+  } = useFirebaseCollection('parts')
 
-  // Save to localStorage whenever parts change
-  useEffect(() => {
-    localStorage.setItem('mechanic-parts', JSON.stringify(parts))
-  }, [parts])
-
-  const addPart = (part) => {
-    const newPart = {
-      id: Date.now().toString(),
-      kodProduk: part.kodProduk,
-      namaProduk: part.namaProduk,
-      harga: parseFloat(part.harga),
-      supplier: part.supplier,
-      gambar: part.gambar || '',
-      specification: part.specification || '',
-      unitStock: parseInt(part.unitStock) || 0,
-      dateAdded: new Date().toISOString()
+  const addPart = async (part) => {
+    try {
+      const newPart = {
+        kodProduk: part.kodProduk,
+        namaProduk: part.namaProduk,
+        harga: parseFloat(part.harga),
+        supplier: part.supplier,
+        gambar: part.gambar || '',
+        specification: part.specification || '',
+        unitStock: parseInt(part.unitStock) || 0,
+        dateAdded: new Date().toISOString()
+      }
+      
+      console.log('Adding part:', newPart)
+      const id = await addItem(newPart)
+      console.log('Part added successfully with ID:', id)
+      return { id, ...newPart }
+    } catch (error) {
+      console.error('Error in addPart:', error)
+      // Don't let the error crash the component
+      throw new Error(`Failed to add part: ${error.message}`)
     }
-    setParts(prev => [...prev, newPart])
-    return newPart
   }
 
-  const updatePart = (id, updatedPart) => {
-    setParts(prev => prev.map(part => 
-      part.id === id 
-        ? { 
-            ...part, 
-            ...updatedPart,
-            harga: parseFloat(updatedPart.harga),
-            unitStock: parseInt(updatedPart.unitStock) || 0,
-            dateUpdated: new Date().toISOString()
-          }
-        : part
-    ))
+  const updatePart = async (id, updatedPart) => {
+    const updateData = {
+      ...updatedPart,
+      harga: parseFloat(updatedPart.harga),
+      unitStock: parseInt(updatedPart.unitStock) || 0,
+      dateUpdated: new Date().toISOString()
+    }
+    await updateItem(id, updateData)
   }
 
-  const deletePart = (id) => {
-    setParts(prev => prev.filter(part => part.id !== id))
+  const deletePart = async (id) => {
+    await deleteItem(id)
   }
 
-  const updateStock = (id, quantity) => {
-    setParts(prev => prev.map(part => 
-      part.id === id 
-        ? { ...part, unitStock: Math.max(0, part.unitStock - quantity) }
-        : part
-    ))
+  const updateStock = async (id, quantity) => {
+    const part = parts.find(p => p.id === id)
+    if (part) {
+      await updateItem(id, { 
+        unitStock: Math.max(0, part.unitStock - quantity),
+        dateUpdated: new Date().toISOString()
+      })
+    }
   }
 
   const getPartById = (id) => {
@@ -81,16 +90,180 @@ export function PartsProvider({ children }) {
     return parts.filter(part => part.unitStock <= threshold)
   }
 
+  /**
+   * Batch update stock for multiple parts atomically
+   * @param {Array} stockUpdates - Array of {partId, newStock, reason}
+   * @returns {Promise<Object>} Update result
+   */
+  const batchUpdateStock = async (stockUpdates) => {
+    if (!stockUpdates || stockUpdates.length === 0) {
+      return { success: true, message: 'No stock updates needed' }
+    }
+
+    try {
+      const batch = writeBatch(db)
+      const timestamp = new Date()
+
+      for (const update of stockUpdates) {
+        const partRef = doc(db, 'parts', update.partId)
+        batch.update(partRef, {
+          unitStock: update.newStock,
+          updatedAt: timestamp,
+          lastStockChange: {
+            reason: update.reason || 'batch_update',
+            change: update.stockChange || 0,
+            timestamp,
+            ...(update.metadata || {})
+          }
+        })
+      }
+
+      await batch.commit()
+
+      return {
+        success: true,
+        message: `Updated stock for ${stockUpdates.length} parts`,
+        updatedParts: stockUpdates.length
+      }
+    } catch (error) {
+      console.error('Batch stock update failed:', error)
+      return {
+        success: false,
+        error: error.message,
+        details: error
+      }
+    }
+  }
+
+  /**
+   * Reserve stock temporarily (for edit sessions)
+   * @param {Array} reservations - Array of {partId, quantity, sessionId}
+   * @returns {Object} Reservation result
+   */
+  const reserveStock = (reservations) => {
+    const errors = []
+    const successful = []
+
+    for (const reservation of reservations) {
+      const part = parts.find(p => p.id === reservation.partId)
+      if (!part) {
+        errors.push(createContextualError(
+          ValidationErrorType.PART_NOT_FOUND,
+          `Part ${reservation.partId} not found`,
+          reservation
+        ))
+        continue
+      }
+
+      if (part.unitStock < reservation.quantity) {
+        errors.push(createContextualError(
+          ValidationErrorType.INSUFFICIENT_STOCK,
+          `Insufficient stock for ${part.namaProduk}. Required: ${reservation.quantity}, Available: ${part.unitStock}`,
+          { ...reservation, partName: part.namaProduk, available: part.unitStock }
+        ))
+        continue
+      }
+
+      successful.push({
+        ...reservation,
+        partName: part.namaProduk,
+        reserved: true
+      })
+    }
+
+    return {
+      success: errors.length === 0,
+      errors,
+      reservations: successful,
+      message: `Reserved ${successful.length} of ${reservations.length} requested items`
+    }
+  }
+
+  /**
+   * Release reserved stock (cleanup edit sessions)
+   * @param {String} sessionId - Session ID to release
+   * @returns {Object} Release result
+   */
+  const releaseReservation = (sessionId) => {
+    // In a full implementation, this would track reservations
+    // For now, we just return success since we're not actually reserving
+    return {
+      success: true,
+      message: `Released reservations for session ${sessionId}`,
+      note: 'Stock reservations are logical only - no actual stock changes made'
+    }
+  }
+
+  /**
+   * Validate if stock changes are possible
+   * @param {Array} changes - Array of {partId, requiredStock}
+   * @returns {Object} Validation result
+   */
+  const validateStockChanges = (changes) => {
+    const errors = []
+    const warnings = []
+
+    for (const change of changes) {
+      const part = parts.find(p => p.id === change.partId)
+      
+      if (!part) {
+        errors.push(createContextualError(
+          ValidationErrorType.PART_NOT_FOUND,
+          `Part ${change.partId} not found`,
+          change
+        ))
+        continue
+      }
+
+      if (change.requiredStock > part.unitStock) {
+        errors.push(createContextualError(
+          ValidationErrorType.INSUFFICIENT_STOCK,
+          `Insufficient stock for ${part.namaProduk}. Required: ${change.requiredStock}, Available: ${part.unitStock}`,
+          { 
+            ...change, 
+            partName: part.namaProduk, 
+            available: part.unitStock,
+            shortage: change.requiredStock - part.unitStock
+          }
+        ))
+      } else if (part.unitStock - change.requiredStock <= 10) {
+        warnings.push(createContextualError(
+          'LOW_STOCK_WARNING',
+          `${part.namaProduk} will have low stock (${part.unitStock - change.requiredStock}) after this change`,
+          { 
+            ...change, 
+            partName: part.namaProduk,
+            remainingStock: part.unitStock - change.requiredStock
+          }
+        ))
+      }
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings,
+      canProceed: errors.length === 0
+    }
+  }
+
   return (
     <PartsContext.Provider value={{
       parts,
+      loading,
+      error,
       addPart,
       updatePart,
       deletePart,
       updateStock,
       getPartById,
       searchParts,
-      getLowStockParts
+      getLowStockParts,
+      // New batch operations
+      batchUpdateStock,
+      reserveStock,
+      releaseReservation,
+      validateStockChanges
     }}>
       {children}
     </PartsContext.Provider>

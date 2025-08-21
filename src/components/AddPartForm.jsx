@@ -38,11 +38,14 @@ function AddPartForm({ onClose }) {
     setIsSubmitting(true)
     
     try {
-      addPart(formData)
+      console.log('Submitting form data:', formData)
+      const result = await addPart(formData)
+      console.log('Add part result:', result)
       onClose()
     } catch (error) {
       console.error('Error adding part:', error)
-      alert('Error adding part. Please try again.')
+      console.error('Error details:', error.message, error.stack)
+      alert(`Error adding part: ${error.message || 'Please try again.'}`)
     } finally {
       setIsSubmitting(false)
     }
@@ -64,7 +67,7 @@ function AddPartForm({ onClose }) {
         return
       }
 
-      // Validate file size (max 5MB)
+      // Validate file size (max 5MB for initial check)
       if (file.size > 5 * 1024 * 1024) {
         alert('File size must be less than 5MB')
         return
@@ -72,12 +75,49 @@ function AddPartForm({ onClose }) {
 
       setSelectedFile(file)
       
-      // Create preview URL
+      // Create preview URL and compress image
       const reader = new FileReader()
       reader.onload = (e) => {
-        const imageUrl = e.target.result
-        setImagePreview(imageUrl)
-        setFormData({ ...formData, gambar: imageUrl })
+        const img = new Image()
+        img.onload = () => {
+          // Create canvas for compression
+          const canvas = document.createElement('canvas')
+          const ctx = canvas.getContext('2d')
+          
+          // Calculate new dimensions (max 800px width/height)
+          let { width, height } = img
+          const maxDimension = 800
+          
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = (height * maxDimension) / width
+              width = maxDimension
+            } else {
+              width = (width * maxDimension) / height
+              height = maxDimension
+            }
+          }
+          
+          canvas.width = width
+          canvas.height = height
+          
+          // Draw and compress
+          ctx.drawImage(img, 0, 0, width, height)
+          
+          // Convert to base64 with compression (quality 0.7)
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7)
+          
+          // Check if still too large (Firebase limit is ~1MB for the whole document)
+          if (compressedDataUrl.length > 500000) { // 500KB limit for safety
+            alert('Image is still too large after compression. Please use a smaller image.')
+            clearImage()
+            return
+          }
+          
+          setImagePreview(compressedDataUrl)
+          setFormData({ ...formData, gambar: compressedDataUrl })
+        }
+        img.src = e.target.result
       }
       reader.readAsDataURL(file)
     }
@@ -245,10 +285,10 @@ function AddPartForm({ onClose }) {
                   htmlFor="image-upload"
                   className="inline-flex items-center px-4 py-2 border border-black-25 rounded-md text-sm font-medium text-primary-black bg-primary-white hover:bg-black-5 cursor-pointer transition-colors"
                 >
-                  📁 Upload from Device
+                  Upload from Device
                 </label>
                 <p className="text-xs text-black-75 mt-1">
-                  Max 5MB • JPG, PNG, GIF supported
+                  Max 5MB • JPG, PNG, GIF supported • Images automatically compressed
                 </p>
               </div>
 
@@ -264,8 +304,37 @@ function AddPartForm({ onClose }) {
                   value={selectedFile ? '' : formData.gambar}
                   onChange={(e) => {
                     if (!selectedFile) {
-                      handleChange('gambar', e.target.value)
+                      const url = e.target.value
+                      handleChange('gambar', url)
                       setImagePreview('')
+                      
+                      // Validate URL image size
+                      if (url && url.startsWith('http')) {
+                        const img = new Image()
+                        img.crossOrigin = 'anonymous'
+                        img.onload = () => {
+                          // Create canvas to check size
+                          const canvas = document.createElement('canvas')
+                          const ctx = canvas.getContext('2d')
+                          canvas.width = img.width
+                          canvas.height = img.height
+                          ctx.drawImage(img, 0, 0)
+                          
+                          const dataUrl = canvas.toDataURL('image/jpeg', 0.8)
+                          if (dataUrl.length > 500000) { // 500KB limit
+                            alert('Image from URL is too large. Please use a smaller image or upload a file for automatic compression.')
+                            handleChange('gambar', '')
+                            return
+                          }
+                          
+                          setImagePreview(dataUrl)
+                          handleChange('gambar', dataUrl)
+                        }
+                        img.onerror = () => {
+                          console.log('Could not validate URL image size')
+                        }
+                        img.src = url
+                      }
                     }
                   }}
                   disabled={!!selectedFile}
@@ -273,7 +342,7 @@ function AddPartForm({ onClose }) {
                   placeholder="https://example.com/image.jpg"
                 />
                 <p className="text-xs text-black-75 mt-1">
-                  Provide a URL to an image of the part
+                  Provide a URL to an image of the part (will be compressed automatically)
                 </p>
               </div>
             </div>

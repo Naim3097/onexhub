@@ -95,7 +95,7 @@ function InvoiceGeneration({ setActiveSection }) {
     return { subtotal, totalAmount, totalMarkup }
   }
 
-  const generateInvoice = () => {
+  const generateInvoice = async () => {
     if (selectedParts.length === 0) {
       alert('Please select at least one part to generate an invoice.')
       return
@@ -120,24 +120,29 @@ function InvoiceGeneration({ setActiveSection }) {
       notes
     }
 
-    const newInvoice = createInvoice(invoiceData)
-    
-    // Update stock levels
-    selectedParts.forEach(item => {
-      updateStock(item.partId, item.quantity)
-    })
+    try {
+      const newInvoice = await createInvoice(invoiceData)
+      
+      // Update stock levels
+      for (const item of selectedParts) {
+        await updateStock(item.partId, item.quantity)
+      }
 
-    setGeneratedInvoice(newInvoice)
-    setShowPreview(true)
-    
-    // Reset form
-    setSelectedParts([])
-    setCustomerInfo({ 
-      name: 'One X Transmission',
-      phone: '+60 11-3105 1677',
-      address: '15-G, JLN SG RASAU, E32/E, Jln Kebun Tambahan, Taman Perindustrian Berjaya, 40460 Shah Alam, Selangor'
-    })
-    setNotes('')
+      setGeneratedInvoice(newInvoice)
+      setShowPreview(true)
+      
+      // Reset form
+      setSelectedParts([])
+      setCustomerInfo({ 
+        name: 'One X Transmission',
+        phone: '+60 11-3105 1677',
+        address: '15-G, JLN SG RASAU, E32/E, Jln Kebun Tambahan, Taman Perindustrian Berjaya, 40460 Shah Alam, Selangor'
+      })
+      setNotes('')
+    } catch (error) {
+      console.error('Error creating invoice:', error)
+      alert('Error creating invoice. Please try again.')
+    }
   }
 
   const { subtotal, totalAmount, totalMarkup } = calculateTotals()

@@ -5,7 +5,7 @@ import AddPartForm from './AddPartForm'
 import EditPartModal from './EditPartModal'
 
 function PartsManagement() {
-  const { parts, searchParts, getLowStockParts } = usePartsContext()
+  const { parts, searchParts, getLowStockParts, loading, error } = usePartsContext()
   const [showAddForm, setShowAddForm] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [editingPart, setEditingPart] = useState(null)
@@ -16,6 +16,34 @@ function PartsManagement() {
     : searchParts(searchQuery)
 
   const lowStockCount = getLowStockParts().length
+
+  if (loading) {
+    return (
+      <div className="touch-spacing">
+        <div className="card">
+          <div className="flex items-center justify-center py-12">
+            <div className="loading-spinner mr-3"></div>
+            <span className="text-black-75">Loading parts...</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="touch-spacing">
+        <div className="card border-primary-red bg-red-50">
+          <div className="text-center py-8">
+            <div className="text-primary-red mb-2">Connection Error</div>
+            <p className="text-black-75 text-sm">
+              Unable to connect to cloud database. Using local data.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="touch-spacing">

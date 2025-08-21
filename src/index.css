@@ -94,6 +94,22 @@
   .btn-tertiary:hover {
     @apply bg-black-10;
   }
+
+  .btn-danger {
+    @apply bg-primary-red text-primary-white border-primary-red border rounded-md px-4 py-2 font-medium transition-all duration-200 min-h-[44px] min-w-[44px] flex items-center justify-center;
+  }
+  
+  .btn-danger:hover {
+    @apply bg-red-700;
+  }
+  
+  .btn-danger:active {
+    @apply transform scale-95;
+  }
+  
+  .btn-danger:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
   
   /* Mobile-optimized input fields */
   .input-field {

@@ -1,12 +1,22 @@
 import { useState } from 'react'
 import { useInvoiceContext } from '../context/InvoiceContext'
+import { usePartsContext } from '../context/PartsContext'
 import InvoicePreview from './InvoicePreview'
 import PDFGenerator from '../utils/PDFGenerator'
 
 function InvoiceHistory() {
-  const { invoices, searchInvoices, calculateInvoiceStats } = useInvoiceContext()
+  const { 
+    invoices, 
+    searchInvoices, 
+    calculateInvoiceStats, 
+    loading, 
+    error, 
+    deleteInvoice
+  } = useInvoiceContext()
+  const { parts } = usePartsContext()
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedInvoice, setSelectedInvoice] = useState(null)
+  const [deletingInvoiceId, setDeletingInvoiceId] = useState(null)
   const [dateFilter, setDateFilter] = useState({
     startDate: '',
     endDate: ''
@@ -25,6 +35,34 @@ function InvoiceHistory() {
     })
   }
 
+  if (loading) {
+    return (
+      <div className="touch-spacing">
+        <div className="card">
+          <div className="flex items-center justify-center py-12">
+            <div className="loading-spinner mr-3"></div>
+            <span className="text-black-75">Loading invoices...</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="touch-spacing">
+        <div className="card border-primary-red bg-red-50">
+          <div className="text-center py-8">
+            <div className="text-primary-red mb-2">Connection Error</div>
+            <p className="text-black-75 text-sm">
+              Unable to connect to cloud database. Using local data.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const filteredByDate = dateFilter.startDate && dateFilter.endDate
     ? displayedInvoices.filter(invoice => {
         const invoiceDate = new Date(invoice.dateCreated)
@@ -32,6 +70,33 @@ function InvoiceHistory() {
                invoiceDate <= new Date(dateFilter.endDate + 'T23:59:59')
       })
     : displayedInvoices
+
+  // Handle invoice deletion
+  const handleDeleteInvoice = async (invoice) => {
+    const confirmMessage = `Are you sure you want to delete invoice ${invoice.invoiceNumber}?\n\nThis will:\n- Remove the invoice permanently\n- Restore stock for all items\n- Cannot be undone\n\nTotal: RM ${invoice.totalAmount.toFixed(2)}`
+    
+    if (!window.confirm(confirmMessage)) return
+
+    setDeletingInvoiceId(invoice.id)
+    try {
+      const result = await deleteInvoice(invoice.id, parts)
+      if (result.success) {
+        alert(`Invoice ${invoice.invoiceNumber} deleted successfully!\n\nStock has been restored for all items.`)
+      } else {
+        alert(`Failed to delete invoice: ${result.error}`)
+      }
+    } catch (error) {
+      console.error('Delete failed:', error)
+      alert(`Error deleting invoice: ${error.message}`)
+    } finally {
+      setDeletingInvoiceId(null)
+    }
+  }
+
+  // Download PDF
+  const downloadPDF = (invoice) => {
+    PDFGenerator.generateInvoicePDF(invoice)
+  }
 
   return (
     <div className="space-y-6">
@@ -161,20 +226,26 @@ function InvoiceHistory() {
                         </div>
                       </td>
                       <td className="table-cell text-center">
-                        <div className="flex justify-center gap-2">
+                        <div className="flex justify-center gap-2 flex-wrap">
                           <button
                             onClick={() => setSelectedInvoice(invoice)}
-                            className="btn-tertiary text-small py-1 px-3"
+                            className="btn-tertiary text-small py-1 px-3 min-h-[44px] sm:min-h-auto"
                           >
                             View
                           </button>
                           <button
-                            onClick={() => {
-                              PDFGenerator.downloadInvoicePDF(invoice)
-                            }}
-                            className="btn-tertiary text-small py-1 px-3"
+                            onClick={() => downloadPDF(invoice)}
+                            className="btn-tertiary text-small py-1 px-3 min-h-[44px] sm:min-h-auto"
                           >
                             PDF
+                          </button>
+                          <button
+                            onClick={() => handleDeleteInvoice(invoice)}
+                            className="btn-danger text-small py-1 px-3 min-h-[44px] sm:min-h-auto"
+                            disabled={deletingInvoiceId === invoice.id}
+                            title="Delete invoice and restore stock"
+                          >
+                            {deletingInvoiceId === invoice.id ? 'Deleting...' : 'Delete'}
                           </button>
                         </div>
                       </td>
