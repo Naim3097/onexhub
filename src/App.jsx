@@ -1,6 +1,7 @@
-import { useState, Suspense, lazy } from 'react'
+import { useState, useEffect, Suspense, lazy } from 'react'
 import Header from './components/Header'
 import Navigation from './components/Navigation'
+import Login from './components/Login'
 import { PartsProvider } from './context/PartsContext'
 import { InvoiceProvider } from './context/InvoiceContext'
 
@@ -19,6 +20,42 @@ const LoadingSpinner = () => (
 
 function App() {
   const [activeSection, setActiveSection] = useState('parts')
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+
+  // Check authentication on app load
+  useEffect(() => {
+    const authStatus = localStorage.getItem('onex_auth')
+    setIsAuthenticated(authStatus === 'authenticated')
+    setIsLoading(false)
+  }, [])
+
+  const handleLogin = (success) => {
+    setIsAuthenticated(success)
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem('onex_auth')
+    setIsAuthenticated(false)
+    setActiveSection('parts')
+  }
+
+  // Show loading spinner while checking auth
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-primary-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="loading-spinner mb-4"></div>
+          <p className="text-black-75">Loading system...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show login page if not authenticated
+  if (!isAuthenticated) {
+    return <Login onLogin={handleLogin} />
+  }
 
   const renderActiveSection = () => {
     switch (activeSection) {
@@ -37,7 +74,7 @@ function App() {
     <PartsProvider>
       <InvoiceProvider>
         <div className="min-h-screen bg-primary-white">
-          <Header />
+          <Header onLogout={handleLogout} />
           <Navigation activeSection={activeSection} setActiveSection={setActiveSection} />
           <main className="container mx-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 max-w-7xl">
             <Suspense fallback={<LoadingSpinner />}>
