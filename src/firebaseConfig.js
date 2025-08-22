@@ -4,14 +4,14 @@ import { getFirestore, connectFirestoreEmulator, enableNetwork, disableNetwork }
 import { getStorage } from 'firebase/storage'
 import { getAuth } from 'firebase/auth'
 
-// Your web app's Firebase configuration - DEFINITIVE FIX
+// Your web app's Firebase configuration - CORRECT FROM CONSOLE
 const firebaseConfig = {
-  apiKey: "AIzaSyBZ5fP7qO8Kmq0_1bOrwcYNc6gJnKrspGo",
-  authDomain: "onexhub-b92b2.firebaseapp.com",
-  projectId: "onexhub-b92b2",
-  storageBucket: "onexhub-b92b2.firebasestorage.app",
-  messagingSenderId: "598436598669",
-  appId: "1:598436598669:web:fd8eea7a7dc1c4c4dfa3e5"
+  apiKey: "AIzaSyBkYbWweI3F_Zulo35_bhpeOcodURbFMXA",
+  authDomain: "oxhub-42c99.firebaseapp.com",
+  projectId: "oxhub-42c99",
+  storageBucket: "oxhub-42c99.firebasestorage.app",
+  messagingSenderId: "319585203062",
+  appId: "1:319585203062:web:6453438cad0938ebb3c057"
 };
 
 // Initialize Firebase
