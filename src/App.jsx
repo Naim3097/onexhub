@@ -1,9 +1,11 @@
 import { useState, useEffect, Suspense, lazy } from 'react'
 import Header from './components/Header'
 import Navigation from './components/Navigation'
-import Login from './components/Login'
+import LoginScreen from './components/LoginScreen'
 import { PartsProvider } from './context/PartsContext'
 import { InvoiceProvider } from './context/InvoiceContext'
+import { onAuthStateChanged } from 'firebase/auth'
+import { auth } from './firebaseConfig'
 
 // Lazy load components for better performance
 const PartsManagement = lazy(() => import('./components/PartsManagement'))
@@ -18,30 +20,33 @@ const LoadingSpinner = () => (
   </div>
 )
 
+// Main App Content Component (after authentication)
 function App() {
   const [activeSection, setActiveSection] = useState('parts')
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
 
-  // Check authentication on app load
   useEffect(() => {
-    const authStatus = localStorage.getItem('onex_auth')
-    setIsAuthenticated(authStatus === 'authenticated')
-    setIsLoading(false)
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user)
+      setLoading(false)
+      console.log('🔐 Auth state changed:', user ? 'Logged in' : 'Logged out')
+    })
+
+    return unsubscribe
   }, [])
 
-  const handleLogin = (success) => {
-    setIsAuthenticated(success)
+  const handleLogout = async () => {
+    try {
+      const { signOut } = await import('firebase/auth')
+      await signOut(auth)
+      console.log('👋 Staff logged out')
+    } catch (error) {
+      console.error('❌ Logout error:', error)
+    }
   }
 
-  const handleLogout = () => {
-    localStorage.removeItem('onex_auth')
-    setIsAuthenticated(false)
-    setActiveSection('parts')
-  }
-
-  // Show loading spinner while checking auth
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-primary-white flex items-center justify-center">
         <div className="text-center">
@@ -52,9 +57,8 @@ function App() {
     )
   }
 
-  // Show login page if not authenticated
-  if (!isAuthenticated) {
-    return <Login onLogin={handleLogin} />
+  if (!user) {
+    return <LoginScreen onLoginSuccess={() => console.log('Login successful!')} />
   }
 
   const renderActiveSection = () => {

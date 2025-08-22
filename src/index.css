@@ -171,6 +171,11 @@
     animation: spin 1s linear infinite;
   }
   
+  .loading-spinner-sm {
+    @apply inline-block w-4 h-4 border-2 border-black-25 border-t-primary-black rounded-full;
+    animation: spin 1s linear infinite;
+  }
+  
   /* Fade in animation for performance */
   .fade-in {
     animation: fadeIn 0.3s ease-out;

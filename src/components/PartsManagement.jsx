@@ -5,7 +5,7 @@ import AddPartForm from './AddPartForm'
 import EditPartModal from './EditPartModal'
 
 function PartsManagement() {
-  const { parts, searchParts, getLowStockParts, loading, error, retryConnection } = usePartsContext()
+  const { parts, searchParts, getLowStockParts, loading, error, retryConnection, isRetrying } = usePartsContext()
   const [showAddForm, setShowAddForm] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [editingPart, setEditingPart] = useState(null)
@@ -17,7 +17,8 @@ function PartsManagement() {
 
   const lowStockCount = getLowStockParts().length
 
-  if (loading && parts.length === 0) {
+  // Show loading only if we have no data and not retrying
+  if (loading && parts.length === 0 && !isRetrying) {
     return (
       <div className="touch-spacing">
         <div className="card">
@@ -41,9 +42,17 @@ function PartsManagement() {
             </p>
             <button
               onClick={retryConnection}
-              className="btn-secondary text-sm"
+              disabled={isRetrying}
+              className={`btn-secondary text-sm ${isRetrying ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              Retry Connection
+              {isRetrying ? (
+                <>
+                  <div className="loading-spinner-sm mr-2"></div>
+                  Connecting...
+                </>
+              ) : (
+                'Retry Connection'
+              )}
             </button>
           </div>
         </div>

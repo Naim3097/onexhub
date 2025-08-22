@@ -16,11 +16,36 @@ export const useFirebaseCollection = (collectionName) => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [retryCount, setRetryCount] = useState(0)
+  const [isRetrying, setIsRetrying] = useState(false)
 
   const retryConnection = () => {
+    if (isRetrying) return // Prevent multiple rapid retries
+    
+    console.log('🔄 Retrying Firebase connection...')
+    setIsRetrying(true)
     setRetryCount(prev => prev + 1)
     setError(null)
-    setLoading(true)
+    
+    // Show cached data immediately when retrying
+    const localData = localStorage.getItem(collectionName)
+    if (localData) {
+      try {
+        const parsedData = JSON.parse(localData)
+        if (parsedData && Array.isArray(parsedData) && parsedData.length > 0) {
+          console.log(`⚡ Showing ${parsedData.length} cached ${collectionName} while retrying`)
+          setData(parsedData)
+          setLoading(false) // Remove loading state immediately
+        }
+      } catch (e) {
+        console.error('Error parsing localStorage data during retry:', e)
+      }
+    }
+    
+    // Add exponential backoff delay for retries
+    const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 5000) // Max 5 seconds
+    setTimeout(() => {
+      setIsRetrying(false)
+    }, retryDelay)
   }
 
   useEffect(() => {
@@ -45,14 +70,14 @@ export const useFirebaseCollection = (collectionName) => {
     // Set up real-time listener for fresh data (runs in background if we have cached data)
     const q = query(collection(db, collectionName), orderBy('createdAt', 'desc'))
     
-    // Add timeout to prevent hanging Firebase connections - reduced to 2 seconds
+    // Add timeout to prevent hanging Firebase connections - reduced to 1 second
     const connectionTimeout = setTimeout(() => {
       if (!hasLocalData) {
         console.log(`⚠️ Firebase connection timeout for ${collectionName}, using offline fallback`)
         setLoading(false)
         setError('Using offline data - connection timeout')
       }
-    }, 2000) // Very fast fallback for better UX
+    }, 1000) // Ultra-fast fallback for better UX
     
     const unsubscribe = onSnapshot(q, 
       (querySnapshot) => {
@@ -120,10 +145,10 @@ export const useFirebaseCollection = (collectionName) => {
     console.log(`⚡ Added item to UI instantly with temp ID: ${tempId}`)
     
     try {
-      // Try Firebase with 1.5 second timeout for very fast fallback
+      // Try Firebase with 1 second timeout for ultra-fast fallback
       const firebasePromise = addDoc(collection(db, collectionName), itemWithTimestamp)
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Firebase add timeout')), 1500)
+        setTimeout(() => reject(new Error('Firebase add timeout')), 1000)
       )
       
       const docRef = await Promise.race([firebasePromise, timeoutPromise])
@@ -171,10 +196,10 @@ export const useFirebaseCollection = (collectionName) => {
         prevData.map(item => item.id === id ? { ...item, ...updateData } : item)
       )
       
-      // Try Firebase with timeout
+      // Try Firebase with timeout - reduced to 1 second
       const firebasePromise = updateDoc(doc(db, collectionName, id), updateData)
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Update timeout')), 2000)
+        setTimeout(() => reject(new Error('Update timeout')), 1000)
       )
       
       await Promise.race([firebasePromise, timeoutPromise])
@@ -228,6 +253,7 @@ export const useFirebaseCollection = (collectionName) => {
     addItem,
     updateItem,
     deleteItem,
-    retryConnection
+    retryConnection,
+    isRetrying
   }
 }
