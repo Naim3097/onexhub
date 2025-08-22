@@ -22,13 +22,19 @@ function LoginScreen({ onLoginSuccess }) {
       
       let errorMessage = 'Login failed. Please check your credentials.'
       if (error.code === 'auth/user-not-found') {
-        errorMessage = 'User not found. Contact administrator.'
+        errorMessage = 'No account found with this email. Please contact administrator to create your account.'
       } else if (error.code === 'auth/wrong-password') {
-        errorMessage = 'Incorrect password. Try again.'
+        errorMessage = 'Incorrect password. Please try again.'
       } else if (error.code === 'auth/invalid-email') {
-        errorMessage = 'Invalid email address.'
+        errorMessage = 'Invalid email address format.'
       } else if (error.code === 'auth/too-many-requests') {
-        errorMessage = 'Too many failed attempts. Try again later.'
+        errorMessage = 'Too many failed attempts. Please try again later.'
+      } else if (error.code === 'auth/network-request-failed') {
+        errorMessage = 'Network error. Please check your internet connection.'
+      } else if (error.code === 'auth/invalid-credential') {
+        errorMessage = 'Invalid login credentials. Please check email and password.'
+      } else {
+        errorMessage = `Login error: ${error.code} - ${error.message}`
       }
       
       setError(errorMessage)
