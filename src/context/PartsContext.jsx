@@ -38,9 +38,22 @@ export function PartsProvider({ children }) {
       }
       
       console.log('Adding part:', newPart)
-      const id = await addItem(newPart)
-      console.log('Part added successfully with ID:', id)
-      return { id, ...newPart }
+      
+      // Use a timeout to prevent hanging on slow connections
+      const addPromise = addItem(newPart)
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Add operation timeout - saved locally')), 1500) // Reduced to 1.5 seconds
+      )
+      
+      try {
+        const id = await Promise.race([addPromise, timeoutPromise])
+        console.log('Part added successfully with ID:', id)
+        return { id, ...newPart }
+      } catch (timeoutError) {
+        // If Firebase times out, the addItem function should still save to localStorage
+        console.log('Firebase timeout, but part saved locally')
+        return { id: Date.now().toString(), ...newPart }
+      }
     } catch (error) {
       console.error('Error in addPart:', error)
       // Don't let the error crash the component

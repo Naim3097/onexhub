@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { 
   collection, 
-  getDocs, 
   addDoc, 
   updateDoc, 
   deleteDoc, 
@@ -18,137 +17,188 @@ export const useFirebaseCollection = (collectionName) => {
   const [error, setError] = useState(null)
 
   useEffect(() => {
+    let hasLocalData = false
+    
     // Load localStorage data immediately for instant display
     const localData = localStorage.getItem(collectionName)
     if (localData) {
       try {
         const parsedData = JSON.parse(localData)
-        console.log(`Loaded ${parsedData.length} ${collectionName} from cache`)
-        setData(parsedData)
-        setLoading(false) // Show cached data immediately
+        if (parsedData && Array.isArray(parsedData) && parsedData.length > 0) {
+          console.log(`✅ Loaded ${parsedData.length} ${collectionName} from cache instantly`)
+          setData(parsedData)
+          setLoading(false) // Show cached data immediately
+          hasLocalData = true
+        }
       } catch (e) {
         console.error('Error parsing localStorage data:', e)
       }
     }
 
-    // Then set up real-time listener for fresh data
+    // Set up real-time listener for fresh data (runs in background if we have cached data)
     const q = query(collection(db, collectionName), orderBy('createdAt', 'desc'))
+    
+    // Add timeout to prevent hanging Firebase connections - reduced to 2 seconds
+    const connectionTimeout = setTimeout(() => {
+      if (!hasLocalData) {
+        console.log(`⚠️ Firebase connection timeout for ${collectionName}, using offline fallback`)
+        setLoading(false)
+        setError('Using offline data - connection timeout')
+      }
+    }, 2000) // Very fast fallback for better UX
     
     const unsubscribe = onSnapshot(q, 
       (querySnapshot) => {
+        clearTimeout(connectionTimeout)
         const items = []
         querySnapshot.forEach((doc) => {
           items.push({ id: doc.id, ...doc.data() })
         })
         
-        console.log(`Loaded ${items.length} ${collectionName} from Firebase`)
+        console.log(`🔄 Synced ${items.length} ${collectionName} from Firebase`)
         setData(items)
         setLoading(false)
+        setError(null)
         
         // Update localStorage with fresh data
         localStorage.setItem(collectionName, JSON.stringify(items))
       },
       (err) => {
-        console.error(`Error fetching ${collectionName}:`, err)
-        setError(err.message)
+        clearTimeout(connectionTimeout)
+        console.error(`❌ Firebase error for ${collectionName}:`, err)
+        setError(`Using offline data - ${err.message}`)
         
-        // Only show loading if we don't have cached data
-        if (data.length === 0) {
+        // Show loading=false if we have cached data
+        if (hasLocalData || data.length > 0) {
+          console.log(`📱 Using cached ${collectionName} data due to Firebase error`)
+          setLoading(false)
+        } else {
+          console.log(`⚠️ No cached data available for ${collectionName}`)
           setLoading(false)
         }
       }
     )
 
-    return () => unsubscribe()
+    return () => {
+      clearTimeout(connectionTimeout)
+      unsubscribe()
+    }
   }, [collectionName])
 
   const addItem = async (item) => {
+    const itemWithTimestamp = {
+      ...item,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+    
+    // Generate temporary ID for immediate feedback
+    const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const tempItem = { ...itemWithTimestamp, id: tempId }
+    
+    // Add to UI immediately for instant response
+    const currentData = data || []
+    setData([tempItem, ...currentData])
+    console.log(`⚡ Added item to UI instantly with temp ID: ${tempId}`)
+    
     try {
-      const itemWithTimestamp = {
-        ...item,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
+      // Try Firebase with 1.5 second timeout for very fast fallback
+      const firebasePromise = addDoc(collection(db, collectionName), itemWithTimestamp)
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Firebase add timeout')), 1500)
+      )
       
-      console.log('Attempting to add item to Firebase:', itemWithTimestamp)
-      const docRef = await addDoc(collection(db, collectionName), itemWithTimestamp)
-      console.log('Firebase add successful, ID:', docRef.id)
+      const docRef = await Promise.race([firebasePromise, timeoutPromise])
       
-      // Also save to localStorage as backup
-      const currentData = data || []
-      const newData = [{ id: docRef.id, ...itemWithTimestamp }, ...currentData]
-      localStorage.setItem(collectionName, JSON.stringify(newData))
-      setData(newData)
+      // Success: Replace temp item with real Firebase item
+      const realItem = { ...itemWithTimestamp, id: docRef.id }
+      setData(prevData => 
+        prevData.map(item => item.id === tempId ? realItem : item)
+      )
       
+      // Update localStorage
+      const updatedData = [realItem, ...currentData]
+      localStorage.setItem(collectionName, JSON.stringify(updatedData))
+      
+      console.log(`✅ Firebase sync successful! Real ID: ${docRef.id}`)
       return docRef.id
-    } catch (error) {
-      console.error(`Firebase error adding ${collectionName} item:`, error)
-      console.log('Falling back to localStorage...')
       
-      try {
-        // Fallback to localStorage
-        const newItem = { 
-          id: Date.now().toString(), 
-          ...item, 
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }
-        const currentData = data || []
-        const newData = [newItem, ...currentData]
-        setData(newData)
-        localStorage.setItem(collectionName, JSON.stringify(newData))
-        
-        console.log('localStorage fallback successful, ID:', newItem.id)
-        return newItem.id
-      } catch (localError) {
-        console.error('localStorage fallback also failed:', localError)
-        throw localError
-      }
+    } catch (timeoutError) {
+      // Timeout or error: Convert temp item to permanent local item
+      const localId = Date.now().toString()
+      const localItem = { ...itemWithTimestamp, id: localId }
+      
+      setData(prevData => 
+        prevData.map(item => item.id === tempId ? localItem : item)
+      )
+      
+      // Save to localStorage
+      const localData = [localItem, ...currentData]
+      localStorage.setItem(collectionName, JSON.stringify(localData))
+      
+      console.log(`📱 Firebase timeout - saved locally with ID: ${localId}`)
+      return localId
     }
   }
 
   const updateItem = async (id, updates) => {
     try {
-      const docRef = doc(db, collectionName, id)
       const updateData = {
         ...updates,
         updatedAt: new Date()
       }
       
-      await updateDoc(docRef, updateData)
+      // Update UI immediately
+      setData(prevData => 
+        prevData.map(item => item.id === id ? { ...item, ...updateData } : item)
+      )
       
-      // Also update localStorage
+      // Try Firebase with timeout
+      const firebasePromise = updateDoc(doc(db, collectionName, id), updateData)
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Update timeout')), 2000)
+      )
+      
+      await Promise.race([firebasePromise, timeoutPromise])
+      
+      // Update localStorage on success
       const updatedData = data.map(item => 
         item.id === id ? { ...item, ...updateData } : item
       )
       localStorage.setItem(collectionName, JSON.stringify(updatedData))
       
-    } catch (error) {
-      console.error(`Error updating ${collectionName} item:`, error)
+      console.log(`✅ Updated item ${id} in Firebase`)
       
-      // Fallback to localStorage
+    } catch (error) {
+      console.log(`📱 Update saved locally for item ${id}`)
+      
+      // Update localStorage as fallback
       const updatedData = data.map(item => 
         item.id === id ? { ...item, ...updates, updatedAt: new Date() } : item
       )
-      setData(updatedData)
       localStorage.setItem(collectionName, JSON.stringify(updatedData))
     }
   }
 
   const deleteItem = async (id) => {
     try {
+      // Remove from UI immediately
+      setData(prevData => prevData.filter(item => item.id !== id))
+      
+      // Try Firebase
       await deleteDoc(doc(db, collectionName, id))
       
-      // Also remove from localStorage
+      // Update localStorage on success
       const filteredData = data.filter(item => item.id !== id)
       localStorage.setItem(collectionName, JSON.stringify(filteredData))
       
-    } catch (error) {
-      console.error(`Error deleting ${collectionName} item:`, error)
+      console.log(`✅ Deleted item ${id} from Firebase`)
       
-      // Fallback to localStorage
+    } catch (error) {
+      console.log(`📱 Delete saved locally for item ${id}`)
+      
+      // Update localStorage as fallback
       const filteredData = data.filter(item => item.id !== id)
-      setData(filteredData)
       localStorage.setItem(collectionName, JSON.stringify(filteredData))
     }
   }

@@ -40,13 +40,35 @@ function AddPartForm({ onClose }) {
     
     try {
       console.log('Submitting form data:', formData)
+      
+      // Optimistic update - add to UI immediately
+      const optimisticPart = {
+        id: `temp-${Date.now()}`,
+        ...formData,
+        harga: parseFloat(formData.harga),
+        unitStock: parseInt(formData.unitStock),
+        dateAdded: new Date().toISOString(),
+        isOptimistic: true
+      }
+      
+      // Add optimistic part to context (for instant UI update)
+      // The addPart function will handle the actual Firebase/localStorage save
       const result = await addPart(formData)
       console.log('Add part result:', result)
+      
+      // Close immediately after submission starts
       onClose()
     } catch (error) {
       console.error('Error adding part:', error)
       console.error('Error details:', error.message, error.stack)
-      alert(`Error adding part: ${error.message || 'Please try again.'}`)
+      
+      // Only show alert for real errors, not timeout issues
+      if (!error.message.includes('timeout') && !error.message.includes('offline')) {
+        alert(`Error adding part: ${error.message || 'Please try again.'}`)
+      }
+      
+      // Still close the form - the part may have been saved to localStorage
+      onClose()
     } finally {
       setIsSubmitting(false)
     }

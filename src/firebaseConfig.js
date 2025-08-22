@@ -1,8 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getFirestore } from 'firebase/firestore'
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { getFirestore, connectFirestoreEmulator, enableNetwork, disableNetwork } from 'firebase/firestore'
+import { getStorage } from 'firebase/storage'
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -19,5 +18,18 @@ const app = initializeApp(firebaseConfig);
 
 // Initialize Cloud Firestore and get a reference to the service
 export const db = getFirestore(app)
+export const storage = getStorage(app)
+
+// Export utilities for network management
+export { enableNetwork, disableNetwork }
+
+// Add connection state management
+let isOnline = navigator.onLine
+window.addEventListener('online', () => { isOnline = true })
+window.addEventListener('offline', () => { isOnline = false })
+export const getNetworkStatus = () => isOnline
+
+// Log Firebase initialization
+console.log('Firebase initialized with project:', firebaseConfig.projectId)
 
 export default app
