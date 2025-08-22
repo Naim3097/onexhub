@@ -6,12 +6,12 @@ import { getAuth } from 'firebase/auth'
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
+  apiKey: "AIzaSyBZ5fP7qO8Kmq0_1bOrwcYNc6gJnKrspGo",
+  authDomain: "onexhub-b92b2.firebaseapp.com",
+  projectId: "onexhub-b92b2",
+  storageBucket: "onexhub-b92b2.firebasestorage.app",
+  messagingSenderId: "598436598669",
+  appId: "1:598436598669:web:fd8eea7a7dc1c4c4dfa3e5"
 };
 
 // Initialize Firebase
