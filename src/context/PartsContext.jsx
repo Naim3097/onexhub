@@ -21,7 +21,8 @@ export function PartsProvider({ children }) {
     error, 
     addItem, 
     updateItem, 
-    deleteItem 
+    deleteItem,
+    retryConnection
   } = useFirebaseCollection('parts')
 
   const addPart = async (part) => {
@@ -272,6 +273,7 @@ export function PartsProvider({ children }) {
       getPartById,
       searchParts,
       getLowStockParts,
+      retryConnection,
       // New batch operations
       batchUpdateStock,
       reserveStock,

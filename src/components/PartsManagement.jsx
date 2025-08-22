@@ -5,7 +5,7 @@ import AddPartForm from './AddPartForm'
 import EditPartModal from './EditPartModal'
 
 function PartsManagement() {
-  const { parts, searchParts, getLowStockParts, loading, error } = usePartsContext()
+  const { parts, searchParts, getLowStockParts, loading, error, retryConnection } = usePartsContext()
   const [showAddForm, setShowAddForm] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [editingPart, setEditingPart] = useState(null)
@@ -30,23 +30,50 @@ function PartsManagement() {
     )
   }
 
-  if (error) {
+  if (error && parts.length === 0) {
     return (
       <div className="touch-spacing">
-        <div className="card border-primary-red bg-red-50">
+        <div className="card border-red-200 bg-red-50">
           <div className="text-center py-8">
-            <div className="text-primary-red mb-2">Connection Error</div>
-            <p className="text-black-75 text-sm">
-              Unable to connect to cloud database. Using local data.
+            <div className="text-red-600 mb-2">⚠️ Offline Mode</div>
+            <p className="text-black-75 text-sm mb-4">
+              Working with local data. Changes will sync when connection is restored.
             </p>
+            <button
+              onClick={retryConnection}
+              className="btn-secondary text-sm"
+            >
+              Retry Connection
+            </button>
           </div>
         </div>
       </div>
     )
   }
 
+  // If we have data but with connection issues, show a small indicator instead
+  const showOfflineIndicator = error && parts.length > 0
+
   return (
     <div className="touch-spacing">
+      {/* Offline Indicator - Small and non-intrusive */}
+      {showOfflineIndicator && (
+        <div className="mb-4 px-4 py-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center text-sm text-yellow-800">
+              <span className="mr-2">📡</span>
+              Working offline - changes will sync when connected
+            </div>
+            <button
+              onClick={retryConnection}
+              className="text-yellow-600 hover:text-yellow-800 text-xs underline"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Section Header - Mobile Optimized */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>

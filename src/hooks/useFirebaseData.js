@@ -15,6 +15,13 @@ export const useFirebaseCollection = (collectionName) => {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [retryCount, setRetryCount] = useState(0)
+
+  const retryConnection = () => {
+    setRetryCount(prev => prev + 1)
+    setError(null)
+    setLoading(true)
+  }
 
   useEffect(() => {
     let hasLocalData = false
@@ -65,12 +72,23 @@ export const useFirebaseCollection = (collectionName) => {
       },
       (err) => {
         clearTimeout(connectionTimeout)
-        console.error(`❌ Firebase error for ${collectionName}:`, err)
-        setError(`Using offline data - ${err.message}`)
+        console.error(`❌ Firebase error for ${collectionName}:`, err.message)
+        
+        // Provide user-friendly error messages
+        let errorMessage = 'Working offline'
+        if (err.code === 'permission-denied') {
+          errorMessage = 'Database access denied - check Firestore rules'
+        } else if (err.code === 'unavailable') {
+          errorMessage = 'Database temporarily unavailable'
+        } else if (err.message.includes('network')) {
+          errorMessage = 'Network connection issue'
+        }
+        
+        setError(errorMessage)
         
         // Show loading=false if we have cached data
         if (hasLocalData || data.length > 0) {
-          console.log(`📱 Using cached ${collectionName} data due to Firebase error`)
+          console.log(`📱 Using cached ${collectionName} data (${data.length} items)`)
           setLoading(false)
         } else {
           console.log(`⚠️ No cached data available for ${collectionName}`)
@@ -83,7 +101,7 @@ export const useFirebaseCollection = (collectionName) => {
       clearTimeout(connectionTimeout)
       unsubscribe()
     }
-  }, [collectionName])
+  }, [collectionName, retryCount]) // Add retryCount to dependencies
 
   const addItem = async (item) => {
     const itemWithTimestamp = {
@@ -209,6 +227,7 @@ export const useFirebaseCollection = (collectionName) => {
     error,
     addItem,
     updateItem,
-    deleteItem
+    deleteItem,
+    retryConnection
   }
 }
