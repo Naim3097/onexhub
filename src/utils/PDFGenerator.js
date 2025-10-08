@@ -382,13 +382,24 @@ class PDFGenerator {
     doc.setTextColor(102, 102, 102)
     
     if (invoice.isQuotation || invoice.type === 'quotation') {
-      doc.text('Thank you for considering One X Transmission!', 105, pageHeight - 25, { align: 'center' })
-      doc.text('Gearbox Specialist - Please contact us to proceed with this quotation.', 105, pageHeight - 18, { align: 'center' })
+      doc.text('Thank you for considering One X Transmission!', 105, pageHeight - 52, { align: 'center' })
+      doc.text('Gearbox Specialist - Please contact us to proceed with this quotation.', 105, pageHeight - 45, { align: 'center' })
     } else {
-      doc.text('Thank you for choosing One X Transmission!', 105, pageHeight - 25, { align: 'center' })
-      doc.text('Gearbox Specialist - For inquiries, please contact us at your earliest convenience.', 105, pageHeight - 18, { align: 'center' })
+      doc.text('Thank you for choosing One X Transmission!', 105, pageHeight - 52, { align: 'center' })
+      doc.text('Gearbox Specialist - For inquiries, please contact us at your earliest convenience.', 105, pageHeight - 45, { align: 'center' })
     }
     
+    // Payment Information
+    doc.setFontSize(7)
+    doc.setTextColor(0, 0, 0)
+    doc.text('1. Method Of Payment : Cash / Debit & Credit Card/ Cheque/ Bank in/ Online Transfer.', 20, pageHeight - 35)
+    doc.text('2. Any indirect transaction, payment must be made into One X Transmission Bank Account. The details of the account are as follow:', 20, pageHeight - 30)
+    doc.setFont('helvetica', 'bold')
+    doc.text('OneXtransmission (MAYBANK): 562786117821', 20, pageHeight - 25)
+    doc.setFont('helvetica', 'normal')
+    
+    doc.setFontSize(8)
+    doc.setTextColor(102, 102, 102)
     doc.text(`Generated on ${new Date().toLocaleDateString('en-MY')}`, 105, pageHeight - 10, { align: 'center' })
     
     return doc
