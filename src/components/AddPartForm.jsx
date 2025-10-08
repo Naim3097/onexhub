@@ -317,10 +317,10 @@ function AddPartForm({ onClose }) {
 
             {/* Image Processing Indicator */}
             {isProcessingImage && (
-              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+              <div className="mb-4 p-3 bg-red-10 border border-primary-red rounded-md">
                 <div className="flex items-center gap-2">
                   <div className="loading-spinner"></div>
-                  <span className="text-sm text-blue-700">Processing image for mobile...</span>
+                  <span className="text-sm text-primary-red">Processing image for mobile...</span>
                 </div>
               </div>
             )}

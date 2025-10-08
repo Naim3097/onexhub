@@ -155,6 +155,19 @@
   .nav-tab.active {
     @apply border-primary-red text-primary-red;
   }
+
+  /* Compact navigation tabs - fixed, no scrolling */
+  .nav-tab-compact {
+    @apply font-medium transition-all duration-200 cursor-pointer border-b-2 border-transparent min-h-[60px] flex items-center justify-center text-center hover:bg-black-10 hover:border-black-25;
+  }
+  
+  .nav-tab-compact.active {
+    @apply border-primary-red text-primary-red bg-red-10;
+  }
+  
+  .nav-tab-compact:active {
+    @apply transform scale-95;
+  }
   
   /* Ultra-optimized modal for mobile */
   .modal-overlay {

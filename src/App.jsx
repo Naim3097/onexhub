@@ -4,6 +4,11 @@ import Navigation from './components/Navigation'
 import LoginScreen from './components/LoginScreen'
 import { PartsProvider } from './context/PartsContext'
 import { InvoiceProvider } from './context/InvoiceContext'
+import { CustomerProvider } from './context/CustomerContext'
+import { TransactionProvider } from './context/TransactionContext'
+import { DataJoinProvider } from './context/DataJoinContext'
+import { RepairOrderProvider } from './context/RepairOrderContext'
+import { EmployeeProvider } from './context/EmployeeContext'
 import { onAuthStateChanged } from 'firebase/auth'
 import { auth } from './firebaseConfig'
 
@@ -11,6 +16,22 @@ import { auth } from './firebaseConfig'
 const PartsManagement = lazy(() => import('./components/PartsManagement'))
 const InvoiceGeneration = lazy(() => import('./components/InvoiceGeneration'))
 const InvoiceHistory = lazy(() => import('./components/InvoiceHistory'))
+
+//  NEW CUSTOMER FLOW COMPONENTS (Lazy loaded)
+const CustomerDatabase = lazy(() => import('./components/CustomerDatabase'))
+const QuotationCreation = lazy(() => import('./components/QuotationCreation'))
+const CustomerInvoiceCreation = lazy(() => import('./components/CustomerInvoiceCreation'))
+const AccountingDashboard = lazy(() => import('./components/AccountingDashboard'))
+const MechanicCommissionDashboard = lazy(() => import('./components/MechanicCommissionDashboard'))
+const CarStatus = lazy(() => import('./components/CarStatus'))
+
+// HR COMPONENTS (Lazy loaded)
+const HRDashboard = lazy(() => import('./components/HRDashboard'))
+const EmployeeManagement = lazy(() => import('./components/EmployeeManagement'))
+const AttendanceTracking = lazy(() => import('./components/AttendanceTracking'))
+const LeaveManagement = lazy(() => import('./components/LeaveManagement'))
+const PayrollManagement = lazy(() => import('./components/PayrollManagement'))
+const PerformanceReviews = lazy(() => import('./components/PerformanceReviews'))
 
 // Loading component for Suspense
 const LoadingSpinner = () => (
@@ -63,12 +84,42 @@ function App() {
 
   const renderActiveSection = () => {
     switch (activeSection) {
+      // EXISTING SECTIONS (PRESERVED EXACTLY)
       case 'parts':
         return <PartsManagement />
       case 'invoice':
         return <InvoiceGeneration setActiveSection={setActiveSection} />
       case 'history':
         return <InvoiceHistory />
+      
+      // NEW CUSTOMER FLOW SECTIONS
+      case 'customers':
+        return <CustomerDatabase setActiveSection={setActiveSection} />
+      case 'quotation':
+        return <QuotationCreation setActiveSection={setActiveSection} />
+      case 'customer-invoicing':
+        return <CustomerInvoiceCreation setActiveSection={setActiveSection} />
+      case 'accounting':
+        return <AccountingDashboard />
+      case 'mechanic-commissions':
+        return <MechanicCommissionDashboard />
+      case 'car-status':
+        return <CarStatus />
+      
+      // HR SECTIONS
+      case 'hr-dashboard':
+        return <HRDashboard />
+      case 'employee-management':
+        return <EmployeeManagement />
+      case 'attendance-tracking':
+        return <AttendanceTracking />
+      case 'leave-management':
+        return <LeaveManagement />
+      case 'payroll-management':
+        return <PayrollManagement />
+      case 'performance-reviews':
+        return <PerformanceReviews />
+      
       default:
         return <PartsManagement />
     }
@@ -77,17 +128,27 @@ function App() {
   return (
     <PartsProvider>
       <InvoiceProvider>
-        <div className="min-h-screen bg-primary-white">
-          <Header onLogout={handleLogout} />
-          <Navigation activeSection={activeSection} setActiveSection={setActiveSection} />
-          <main className="container mx-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 max-w-7xl">
-            <Suspense fallback={<LoadingSpinner />}>
-              <div className="fade-in">
-                {renderActiveSection()}
-              </div>
-            </Suspense>
-          </main>
-        </div>
+        <CustomerProvider>
+          <TransactionProvider>
+            <RepairOrderProvider>
+              <EmployeeProvider>
+                <DataJoinProvider>
+                  <div className="min-h-screen bg-primary-white">
+                    <Header onLogout={handleLogout} />
+                    <Navigation activeSection={activeSection} setActiveSection={setActiveSection} />
+                    <main className="container mx-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 max-w-7xl">
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <div className="fade-in">
+                          {renderActiveSection()}
+                        </div>
+                      </Suspense>
+                    </main>
+                  </div>
+                </DataJoinProvider>
+              </EmployeeProvider>
+            </RepairOrderProvider>
+          </TransactionProvider>
+        </CustomerProvider>
       </InvoiceProvider>
     </PartsProvider>
   )

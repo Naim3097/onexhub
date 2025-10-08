@@ -1,7 +1,7 @@
 {
-  "name": "mechanic-parts-invoice-system",
+  "name": "byki-lite-business-management",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
