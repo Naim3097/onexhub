@@ -32,13 +32,13 @@ function Login({ onLogin }) {
         {/* Logo/Brand Section */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-primary-black rounded-full mb-4 mx-auto">
-            <span className="text-primary-white font-bold text-2xl flex items-center justify-center">OX</span>
+            <span className="text-primary-white font-bold text-2xl flex items-center justify-center">BK</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-primary-black mb-2">
-            OXHUB
+            BYKI Lite
           </h1>
           <p className="text-black-75 text-sm sm:text-base">
-            One X Transmission Parts & Invoice Management System
+            One X Transmission Business Management System
           </p>
         </div>
 
@@ -107,7 +107,7 @@ function Login({ onLogin }) {
         {/* Footer */}
         <div className="text-center mt-8 text-black-50 text-xs">
           <p>© 2025 One X Transmission. All rights reserved.</p>
-          <p className="mt-1">OXHUB - Secure Parts Management System v2.0</p>
+          <p className="mt-1">BYKI Lite - Business Management System v2.0</p>
         </div>
       </div>
     </div>

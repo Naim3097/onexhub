@@ -5,8 +5,8 @@ function Header({ onLogout }) {
         <div className="flex items-center justify-between">
           <div className="min-w-0 flex-1">
             <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold tracking-tight leading-tight">
-              <span className="hidden sm:inline">OXHUB - Parts & Invoice Management</span>
-              <span className="sm:hidden">OXHUB</span>
+              <span className="hidden sm:inline">BYKI Lite - Business Management</span>
+              <span className="sm:hidden">BYKI Lite</span>
             </h1>
             <p className="text-black-75 mt-1 text-sm sm:text-base hidden sm:block">
               One X Transmission professional parts management system

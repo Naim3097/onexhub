@@ -48,7 +48,7 @@ function LoginScreen({ onLoginSuccess }) {
       <div className="card max-w-md w-full">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-primary-black mb-2">
-            ONEXHUB
+            BYKI Lite
           </h1>
           <p className="text-black-75">
             Staff Access Portal
@@ -111,7 +111,7 @@ function LoginScreen({ onLoginSuccess }) {
 
         <div className="mt-6 text-center">
           <p className="text-xs text-black-50">
-            ONEXHUB Parts & Invoice Management System
+            BYKI Lite Parts & Invoice Management System
           </p>
         </div>
       </div>
