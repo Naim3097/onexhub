@@ -31,6 +31,10 @@ function CustomerInvoiceCreation({ setActiveSection }) {
   const [deposit, setDeposit] = useState(0)
   const [notes, setNotes] = useState('')
   
+  // DirectLending states
+  const [useDirectLending, setUseDirectLending] = useState(false)
+  const [directLendingAmount, setDirectLendingAmount] = useState(0)
+  
   // Commission settings
   const [commissionType, setCommissionType] = useState('percentage') // 'percentage' or 'fixed'
   const [commissionValue, setCommissionValue] = useState(0)
@@ -176,6 +180,8 @@ function CustomerInvoiceCreation({ setActiveSection }) {
     setPaymentStatus(invoice.paymentStatus || 'pending')
     setDiscount(invoice.discount || 0)
     setDeposit(invoice.deposit || 0)
+    setUseDirectLending(invoice.useDirectLending || false)
+    setDirectLendingAmount(invoice.directLendingAmount || 0)
     setNotes(invoice.notes || '')
     setSelectedMechanic(invoice.mechanicId ? mechanics.find(m => m.id === invoice.mechanicId) : null)
     setCommissionType(invoice.commissionType || 'percentage')
@@ -217,7 +223,10 @@ function CustomerInvoiceCreation({ setActiveSection }) {
         totalAmount: Number(invoice.customerTotal || invoice.total) || 0,
         workDescription: invoice.workDescription || '',
         mechanicName: invoice.mechanicName || '',
-        vehicleInfo: invoice.vehicleInfo || {}
+        vehicleInfo: invoice.vehicleInfo || {},
+        useDirectLending: invoice.useDirectLending || false,
+        directLendingAmount: Number(invoice.directLendingAmount) || 0,
+        customerPayableAmount: Number(invoice.customerPayableAmount) || 0
       }
       
       console.log('📄 PDF Data prepared:', pdfData)
@@ -241,6 +250,8 @@ function CustomerInvoiceCreation({ setActiveSection }) {
     setDiscount(0)
     setDeposit(0)
     setNotes('')
+    setUseDirectLending(false)
+    setDirectLendingAmount(0)
     setCommissionType('percentage')
     setCommissionValue(0)
     setCommissionAmount(0)
@@ -255,7 +266,11 @@ function CustomerInvoiceCreation({ setActiveSection }) {
     const depositAmount = Number(deposit) || 0
     const balanceDue = total - depositAmount
     
-    // Calculate commission (based on total before deposit)
+    // DirectLending calculations
+    const directLending = useDirectLending ? Number(directLendingAmount) || 0 : 0
+    const customerPayableAmount = useDirectLending ? balanceDue - directLending : balanceDue
+    
+    // Calculate commission (based on total before deposit and DirectLending)
     let calcCommission = 0
     if (commissionType === 'percentage') {
       calcCommission = (total * commissionValue) / 100
@@ -263,14 +278,25 @@ function CustomerInvoiceCreation({ setActiveSection }) {
       calcCommission = commissionValue
     }
     
-    return { partsTotal, laborTotal, subtotal, discountAmount, total, deposit: depositAmount, balanceDue, commission: calcCommission }
+    return { 
+      partsTotal, 
+      laborTotal, 
+      subtotal, 
+      discountAmount, 
+      total, 
+      deposit: depositAmount, 
+      balanceDue, 
+      directLendingAmount: directLending,
+      customerPayableAmount,
+      commission: calcCommission 
+    }
   }
 
   // Update commission amount when values change
   useEffect(() => {
     const totals = calculateTotals()
     setCommissionAmount(totals.commission)
-  }, [commissionType, commissionValue, manualParts, laborCharges, discount, deposit])
+  }, [commissionType, commissionValue, manualParts, laborCharges, discount, deposit, useDirectLending, directLendingAmount])
 
   const addManualPart = () => {
     setManualParts([...manualParts, {
@@ -345,6 +371,9 @@ function CustomerInvoiceCreation({ setActiveSection }) {
         discountAmount: totals.discountAmount,
         deposit: totals.deposit,
         balanceDue: totals.balanceDue,
+        useDirectLending: useDirectLending,
+        directLendingAmount: totals.directLendingAmount,
+        customerPayableAmount: totals.customerPayableAmount,
         customerTotal: totals.total,
         total: totals.total,
         paymentStatus: paymentStatus,
@@ -394,6 +423,9 @@ function CustomerInvoiceCreation({ setActiveSection }) {
         discountAmount: totals.discountAmount,
         deposit: totals.deposit,
         balanceDue: totals.balanceDue,
+        useDirectLending: useDirectLending,
+        directLendingAmount: totals.directLendingAmount,
+        customerPayableAmount: totals.customerPayableAmount,
         customerTotal: totals.total,
         total: totals.total,
         paymentStatus: paymentStatus,
@@ -433,13 +465,13 @@ function CustomerInvoiceCreation({ setActiveSection }) {
           <h2 className="text-2xl font-bold">
             {viewMode === 'create' ? 'Create Customer Invoice' : 'Invoice Management'}
           </h2>
-          <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+          <div className="flex rounded-lg border border-black-10 overflow-hidden">
             <button
               onClick={() => setViewMode('create')}
               className={`px-4 py-2 text-sm font-medium ${
                 viewMode === 'create'
-                  ? 'bg-red-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
+                  ? 'bg-primary-red text-white'
+                  : 'bg-white text-primary-black hover:bg-black-5'
               }`}
             >
               Create New
@@ -448,8 +480,8 @@ function CustomerInvoiceCreation({ setActiveSection }) {
               onClick={() => setViewMode('list')}
               className={`px-4 py-2 text-sm font-medium ${
                 viewMode === 'list'
-                  ? 'bg-red-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
+                  ? 'bg-primary-red text-white'
+                  : 'bg-white text-primary-black hover:bg-black-5'
               }`}
             >
               View History ({invoiceHistory.length})
@@ -476,7 +508,7 @@ function CustomerInvoiceCreation({ setActiveSection }) {
                   placeholder="Search invoices by customer, number, or description..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full px-4 py-3 border border-black-25 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  className="w-full px-4 py-3 border border-black-25 rounded-lg focus:ring-2 focus:ring-primary-red focus:border-primary-red"
                 />
               </div>
               <select
@@ -529,6 +561,17 @@ function CustomerInvoiceCreation({ setActiveSection }) {
                         <td className="px-4 py-4 text-sm">
                           <div className="font-medium text-primary-black">{invoice.invoiceNumber}</div>
                           <div className="text-black-50">{formatDate(invoice.dateCreated)}</div>
+                          {invoice.useDirectLending && (
+                            <div className="mt-1">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                                <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z"/>
+                                  <path fillRule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clipRule="evenodd"/>
+                                </svg>
+                                DirectLending
+                              </span>
+                            </div>
+                          )}
                         </td>
                         <td className="px-4 py-4 text-sm">
                           <div className="text-primary-black">{invoice.customerName}</div>
@@ -879,6 +922,47 @@ function CustomerInvoiceCreation({ setActiveSection }) {
                 <p className="text-xs text-gray-500 mt-1">Amount paid upfront by customer</p>
               </div>
 
+              {/* DirectLending Section */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center mb-3">
+                  <input
+                    type="checkbox"
+                    id="useDirectLending"
+                    checked={useDirectLending}
+                    onChange={(e) => {
+                      setUseDirectLending(e.target.checked)
+                      if (!e.target.checked) {
+                        setDirectLendingAmount(0)
+                      }
+                    }}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                  <label htmlFor="useDirectLending" className="ml-2 text-sm font-medium text-gray-900">
+                    Customer uses DirectLending
+                  </label>
+                </div>
+                
+                {useDirectLending && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      DirectLending Approved Amount (RM)
+                    </label>
+                    <input
+                      type="number"
+                      value={directLendingAmount}
+                      onChange={(e) => setDirectLendingAmount(Math.max(0, parseFloat(e.target.value) || 0))}
+                      className="w-full px-4 py-2 border border-blue-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                    />
+                    <p className="text-xs text-blue-600 mt-1">
+                      Amount approved by DirectLending for installment payment
+                    </p>
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
                 <textarea
@@ -976,6 +1060,21 @@ function CustomerInvoiceCreation({ setActiveSection }) {
                       <span>Balance Due:</span>
                       <span>{formatCurrency(calculateTotals().balanceDue)}</span>
                     </div>
+                  </>
+                )}
+                {useDirectLending && (
+                  <>
+                    <div className="flex justify-between text-sm text-purple-600 border-t pt-2">
+                      <span>DirectLending Amount:</span>
+                      <span className="font-medium">-{formatCurrency(calculateTotals().directLendingAmount)}</span>
+                    </div>
+                    <div className="flex justify-between text-lg font-bold text-green-600 border-t pt-2">
+                      <span>Customer Payable Amount:</span>
+                      <span>{formatCurrency(calculateTotals().customerPayableAmount)}</span>
+                    </div>
+                    <p className="text-xs text-gray-600 mt-1 italic">
+                      * Revenue received: Full amount ({formatCurrency(calculateTotals().total)}) = DirectLending + Customer Payment
+                    </p>
                   </>
                 )}
               </div>
@@ -1354,7 +1453,57 @@ function CustomerInvoiceCreation({ setActiveSection }) {
                       step="0.1"
                     />
                   </div>
+                  <div>
+                    <label className="block text-sm mb-1">Deposit (RM)</label>
+                    <input
+                      type="number"
+                      value={deposit}
+                      onChange={(e) => setDeposit(Math.max(0, parseFloat(e.target.value) || 0))}
+                      className="w-full px-3 py-2 border rounded-lg"
+                      step="0.01"
+                      placeholder="0.00"
+                    />
+                  </div>
                 </div>
+                
+                {/* DirectLending Section in Edit Modal */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
+                  <div className="flex items-center mb-2">
+                    <input
+                      type="checkbox"
+                      id="editUseDirectLending"
+                      checked={useDirectLending}
+                      onChange={(e) => {
+                        setUseDirectLending(e.target.checked)
+                        if (!e.target.checked) {
+                          setDirectLendingAmount(0)
+                        }
+                      }}
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                    />
+                    <label htmlFor="editUseDirectLending" className="ml-2 text-sm font-medium text-gray-900">
+                      Customer uses DirectLending
+                    </label>
+                  </div>
+                  
+                  {useDirectLending && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        DirectLending Approved Amount (RM)
+                      </label>
+                      <input
+                        type="number"
+                        value={directLendingAmount}
+                        onChange={(e) => setDirectLendingAmount(Math.max(0, parseFloat(e.target.value) || 0))}
+                        className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                      />
+                    </div>
+                  )}
+                </div>
+                
                 <div className="mt-3">
                   <label className="block text-sm mb-1">Notes</label>
                   <textarea
@@ -1429,6 +1578,30 @@ function CustomerInvoiceCreation({ setActiveSection }) {
                     <span>Total:</span>
                     <span className="text-red-600">{formatCurrency(calculateTotals().total)}</span>
                   </div>
+                  {deposit > 0 && (
+                    <>
+                      <div className="flex justify-between text-sm text-blue-600">
+                        <span>Deposit Paid:</span>
+                        <span>-{formatCurrency(calculateTotals().deposit)}</span>
+                      </div>
+                      <div className="flex justify-between text-lg font-bold text-orange-600 border-t pt-2">
+                        <span>Balance Due:</span>
+                        <span>{formatCurrency(calculateTotals().balanceDue)}</span>
+                      </div>
+                    </>
+                  )}
+                  {useDirectLending && (
+                    <>
+                      <div className="flex justify-between text-sm text-purple-600">
+                        <span>DirectLending:</span>
+                        <span>-{formatCurrency(calculateTotals().directLendingAmount)}</span>
+                      </div>
+                      <div className="flex justify-between text-lg font-bold text-green-600 border-t pt-2">
+                        <span>Customer Payable:</span>
+                        <span>{formatCurrency(calculateTotals().customerPayableAmount)}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
               

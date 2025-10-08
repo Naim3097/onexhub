@@ -3,6 +3,7 @@ import { useCustomer } from '../context/CustomerContext'
 import { useDataJoin } from '../context/DataJoinContext'
 import { collection, getDocs, query, where, orderBy } from 'firebase/firestore'
 import { db } from '../firebaseConfig'
+import { createCustomer } from '../utils/FirebaseDataUtils'
 
 function CustomerDatabase({ setActiveSection }) {
   const [searchTerm, setSearchTerm] = useState('')
@@ -12,6 +13,16 @@ function CustomerDatabase({ setActiveSection }) {
   const [isLoadingPastCustomers, setIsLoadingPastCustomers] = useState(true)
   const [selectedPastCustomer, setSelectedPastCustomer] = useState(null)
   const [showPastCustomerModal, setShowPastCustomerModal] = useState(false)
+  
+  // Add Customer Modal states
+  const [showAddCustomerModal, setShowAddCustomerModal] = useState(false)
+  const [newCustomer, setNewCustomer] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    address: ''
+  })
+  const [isSaving, setIsSaving] = useState(false)
   
   const { 
     customers, 
@@ -151,6 +162,27 @@ function CustomerDatabase({ setActiveSection }) {
     setShowPastCustomerModal(true)
   }
 
+  const handleAddCustomer = async () => {
+    if (!newCustomer.name || !newCustomer.phone) {
+      alert('Please enter at least name and phone number')
+      return
+    }
+
+    setIsSaving(true)
+    try {
+      await createCustomer(newCustomer)
+      alert('Customer added successfully!')
+      setShowAddCustomerModal(false)
+      setNewCustomer({ name: '', phone: '', email: '', address: '' })
+      // The customer list will auto-update via the CustomerContext listener
+    } catch (error) {
+      console.error('Error adding customer:', error)
+      alert('Error adding customer. Please try again.')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   const formatDate = (date) => {
     if (!date) return 'Never'
     return new Date(date).toLocaleDateString()
@@ -193,19 +225,33 @@ function CustomerDatabase({ setActiveSection }) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-primary-black">Customers</h2>
-          <p className="text-black-75 text-sm sm:text-base">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <h2 className="text-2xl font-bold text-primary-black">Customers</h2>
+          <p className="text-black-75 text-sm">
             {filteredCustomers.length} customers • {joinedCustomerData.filter(c => c.isActiveCustomer).length} active
           </p>
         </div>
-        <button
-          onClick={() => setActiveSection('customer-invoicing')}
-          className="btn-primary text-sm sm:text-base"
-        >
-          Create Customer Invoice
-        </button>
+        <div className="flex rounded-lg border border-black-10 overflow-hidden">
+          <button
+            onClick={() => setShowAddCustomerModal(true)}
+            className="px-4 py-2 text-sm font-medium bg-white text-primary-black hover:bg-black-5 border-r border-black-10"
+          >
+            Add Customer
+          </button>
+          <button
+            onClick={() => setActiveSection('quotation')}
+            className="px-4 py-2 text-sm font-medium bg-white text-primary-black hover:bg-black-5 border-r border-black-10"
+          >
+            Create Quotation
+          </button>
+          <button
+            onClick={() => setActiveSection('customer-invoicing')}
+            className="px-4 py-2 text-sm font-medium bg-primary-red text-white hover:bg-red-dark"
+          >
+            Create Invoice
+          </button>
+        </div>
       </div>
 
       {/* Search Section */}
@@ -646,6 +692,106 @@ function CustomerDatabase({ setActiveSection }) {
                   className="px-6 py-2 border border-black-20 rounded-lg hover:bg-black-5"
                 >
                   Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Customer Modal */}
+      {showAddCustomerModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-primary-black">Add New Customer</h3>
+                <button
+                  onClick={() => {
+                    setShowAddCustomerModal(false)
+                    setNewCustomer({ name: '', phone: '', email: '', address: '' })
+                  }}
+                  className="text-black-50 hover:text-primary-black"
+                >
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Name <span className="text-red-600">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newCustomer.name}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
+                    placeholder="Enter customer name"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Phone <span className="text-red-600">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    value={newCustomer.phone}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
+                    placeholder="Enter phone number"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={newCustomer.email}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
+                    placeholder="Enter email address"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Address
+                  </label>
+                  <textarea
+                    value={newCustomer.address}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
+                    placeholder="Enter customer address"
+                    rows="3"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={handleAddCustomer}
+                  disabled={isSaving || !newCustomer.name || !newCustomer.phone}
+                  className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  {isSaving ? 'Adding...' : 'Add Customer'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowAddCustomerModal(false)
+                    setNewCustomer({ name: '', phone: '', email: '', address: '' })
+                  }}
+                  disabled={isSaving}
+                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
                 </button>
               </div>
             </div>

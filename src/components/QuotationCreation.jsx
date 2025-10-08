@@ -356,59 +356,63 @@ function QuotationCreation({ setActiveSection }) {
   const totals = calculateTotals()
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold">Quotation Management</h2>
-          <p className="text-gray-600 text-sm sm:text-base">
-            Create and manage customer quotations
-          </p>
+    <div className="p-6 max-w-6xl mx-auto">
+      {/* Header with View Toggle */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <h2 className="text-2xl font-bold">
+            {viewMode === 'create' ? 'Create Customer Quotation' : 'Quotation Management'}
+          </h2>
+          <div className="flex rounded-lg border border-black-10 overflow-hidden">
+            <button
+              onClick={() => setViewMode('create')}
+              className={`px-4 py-2 text-sm font-medium ${
+                viewMode === 'create'
+                  ? 'bg-primary-red text-white'
+                  : 'bg-white text-primary-black hover:bg-black-5'
+              }`}
+            >
+              Create New
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`px-4 py-2 text-sm font-medium ${
+                viewMode === 'list'
+                  ? 'bg-primary-red text-white'
+                  : 'bg-white text-primary-black hover:bg-black-5'
+              }`}
+            >
+              View History ({quotationHistory.length})
+            </button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setViewMode('list')}
-            className={`px-4 py-2 rounded-lg ${
-              viewMode === 'list'
-                ? 'bg-blue-600 text-white'
-                : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            View History
-          </button>
-          <button
-            onClick={() => {
-              resetForm()
-              setViewMode('create')
-            }}
-            className={`px-4 py-2 rounded-lg ${
-              viewMode === 'create'
-                ? 'bg-blue-600 text-white'
-                : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            Create New
-          </button>
-        </div>
+        <button
+          onClick={() => setActiveSection('customers')}
+          className="px-4 py-2 text-black-75 hover:text-primary-black"
+        >
+          Back to Customers
+        </button>
       </div>
 
-      {/* VIEW HISTORY MODE */}
+      {/* Quotation History View */}
       {viewMode === 'list' && (
-        <div className="space-y-4">
-          {/* Search and Filter */}
-          <div className="bg-white rounded-lg shadow-md p-4">
+        <div className="space-y-6">
+          {/* Search and Filters */}
+          <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex flex-col sm:flex-row gap-4">
-              <input
-                type="text"
-                placeholder="Search quotations..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
+              <div className="flex-1">
+                <input
+                  type="text"
+                  placeholder="Search quotations by customer, number, or description..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full px-4 py-3 border border-black-25 rounded-lg focus:ring-2 focus:ring-primary-red focus:border-primary-red"
+                />
+              </div>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="px-4 py-3 border border-black-25 rounded-lg focus:ring-2 focus:ring-primary-red focus:border-primary-red"
               >
                 <option value="all">All Status</option>
                 <option value="pending">Pending</option>
@@ -420,20 +424,21 @@ function QuotationCreation({ setActiveSection }) {
           </div>
 
           {/* Quotation List */}
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="p-4 sm:p-6 border-b">
-              <h3 className="text-lg font-semibold">Quotation History</h3>
-              <p className="text-gray-600 text-sm">View and manage all quotations</p>
+          <div className="bg-primary-white rounded-lg border border-black-10 overflow-hidden">
+            <div className="p-4 sm:p-6 border-b border-black-10">
+              <h3 className="text-lg font-semibold text-primary-black">Quotation History</h3>
+              <p className="text-black-75 text-sm">Manage and download existing quotations</p>
             </div>
 
             {isLoadingQuotations ? (
               <div className="p-8 text-center">
-                <div className="loading-spinner mb-4"></div>
-                <p className="text-gray-500">Loading quotations...</p>
+                <p className="text-black-50">Loading quotations...</p>
               </div>
             ) : getFilteredQuotations().length === 0 ? (
               <div className="p-8 text-center">
-                <p className="text-gray-500">No quotations found</p>
+                <p className="text-black-50">
+                  {searchQuery ? 'No quotations match your search.' : 'No quotations found.'}
+                </p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -509,7 +514,7 @@ function QuotationCreation({ setActiveSection }) {
         </div>
       )}
 
-      {/* CREATE MODE */}
+      {/* Create Quotation View */}
       {viewMode === 'create' && (
         <div className="space-y-6">
           {/* Customer Selection */}
@@ -517,16 +522,16 @@ function QuotationCreation({ setActiveSection }) {
             <h3 className="text-lg font-semibold mb-4">Customer Information</h3>
             
             {selectedCustomer ? (
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <div className="bg-black-5 p-4 rounded-lg border border-black-10">
                 <div className="flex justify-between items-start">
                   <div>
                     <h4 className="font-semibold text-lg">{selectedCustomer.name}</h4>
-                    <p className="text-gray-600">{selectedCustomer.email}</p>
-                    <p className="text-gray-600">{selectedCustomer.phone}</p>
+                    <p className="text-black-75">{selectedCustomer.email}</p>
+                    <p className="text-black-75">{selectedCustomer.phone}</p>
                   </div>
                   <button
                     onClick={() => setSelectedCustomer(null)}
-                    className="px-4 py-2 text-blue-600 hover:text-blue-800"
+                    className="px-4 py-2 text-primary-red hover:text-red-dark"
                   >
                     Change Customer
                   </button>
@@ -535,7 +540,7 @@ function QuotationCreation({ setActiveSection }) {
             ) : (
               <button
                 onClick={() => setShowCustomerModal(true)}
-                className="w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-blue-500 hover:text-blue-600"
+                className="w-full px-4 py-3 border-2 border-dashed border-black-25 rounded-lg text-black-75 hover:border-primary-red hover:text-primary-red"
               >
                 + Select Customer
               </button>
@@ -599,7 +604,7 @@ function QuotationCreation({ setActiveSection }) {
                   <h3 className="text-lg font-semibold">Parts</h3>
                   <button
                     onClick={addManualPart}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    className="px-4 py-2 bg-primary-red text-white rounded-lg hover:bg-red-dark"
                   >
                     + Add Part
                   </button>
@@ -822,7 +827,7 @@ function QuotationCreation({ setActiveSection }) {
                 <button
                   onClick={handleCreateQuotation}
                   disabled={isSaving || !selectedCustomer || (manualParts.length === 0 && laborCharges.length === 0)}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-3 bg-primary-red text-white rounded-lg hover:bg-red-dark disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSaving ? 'Creating...' : 'Create Quotation'}
                 </button>

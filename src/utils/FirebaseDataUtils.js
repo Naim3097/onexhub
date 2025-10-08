@@ -41,6 +41,29 @@ const checkAuth = () => {
 // ===== CUSTOMER DATA UTILITIES =====
 
 /**
+ * Create a new customer
+ */
+export const createCustomer = async (customerData) => {
+  try {
+    console.log('📝 Creating new customer:', customerData)
+    const customersRef = collection(db, 'customers')
+    const docRef = await addDoc(customersRef, {
+      name: customerData.name || '',
+      phone: customerData.phone || '',
+      email: customerData.email || '',
+      address: customerData.address || '',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    })
+    console.log('✅ Customer created with ID:', docRef.id)
+    return { id: docRef.id, ...customerData }
+  } catch (error) {
+    console.error('❌ Error creating customer:', error)
+    throw error
+  }
+}
+
+/**
  * Get all customers from external collection
  */
 export const getAllCustomers = async () => {
@@ -423,6 +446,7 @@ export const updateQuotationStatus = async (quotationId, status) => {
 
 export default {
   // Customer utilities
+  createCustomer,
   getAllCustomers,
   getCustomerById,
   searchCustomers,

@@ -231,63 +231,103 @@ class PDFGenerator {
     
     yPos += 10
     
-    // Totals Section
-    const totalsX = 130
+    // Totals Section - Aligned with parts/labor table
+    const labelX = 120  // Align labels closer to the right, matching table layout
+    const amountX = 170 // Same position as "Amount" column in table
     doc.setLineWidth(0.5)
     
+    // Add spacing before totals
+    yPos += 3
+    
     // Subtotal
-    doc.setFontSize(10)
+    doc.setFontSize(9)
     doc.setTextColor(0, 0, 0)
-    doc.text('Subtotal:', totalsX, yPos)
-    doc.text(`RM${(invoice.subtotal || subtotal).toFixed(2)}`, 175, yPos)
-    yPos += 8
+    doc.text('Subtotal:', labelX, yPos)
+    doc.text(`RM${(invoice.subtotal || subtotal).toFixed(2)}`, amountX, yPos)
+    yPos += 6
     
     // Discount (if applicable)
     if (invoice.discountAmount && invoice.discountAmount > 0) {
-      doc.setTextColor(34, 197, 94) // Green color
-      doc.text(`Discount (${invoice.discount || 0}%):`, totalsX, yPos)
-      doc.text(`-RM${invoice.discountAmount.toFixed(2)}`, 175, yPos)
-      yPos += 8
-      doc.setTextColor(0, 0, 0) // Reset to black
+      doc.setTextColor(0, 0, 0)
+      doc.text(`Discount (${invoice.discount || 0}%):`, labelX, yPos)
+      doc.text(`-RM${invoice.discountAmount.toFixed(2)}`, amountX, yPos)
+      yPos += 6
     }
     
     // Tax (if applicable)
     if (invoice.tax && invoice.tax > 0) {
-      doc.text('SST (6%):', totalsX, yPos)
-      doc.text(`RM${invoice.tax.toFixed(2)}`, 175, yPos)
-      yPos += 8
+      doc.setTextColor(0, 0, 0)
+      doc.text('SST (6%):', labelX, yPos)
+      doc.text(`RM${invoice.tax.toFixed(2)}`, amountX, yPos)
+      yPos += 6
     }
     
     // Line above total
-    doc.line(totalsX, yPos, 190, yPos)
+    yPos += 2
+    doc.setDrawColor(0, 0, 0)
+    doc.line(120, yPos, 190, yPos)
     yPos += 5
     
     // Total
-    doc.setFontSize(12)
-    doc.setTextColor(220, 38, 38)
-    doc.text('TOTAL:', totalsX, yPos)
-    doc.text(`RM${(invoice.totalAmount || invoice.total || subtotal).toFixed(2)}`, 175, yPos)
-    yPos += 10
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(0, 0, 0)
+    doc.text('TOTAL:', labelX, yPos)
+    doc.text(`RM${(invoice.totalAmount || invoice.total || subtotal).toFixed(2)}`, amountX, yPos)
+    doc.setFont('helvetica', 'normal')
+    yPos += 8
     
     // Deposit (if applicable) and Balance Due
     if (invoice.deposit && invoice.deposit > 0) {
-      doc.setFontSize(10)
-      doc.setTextColor(59, 130, 246) // Blue color
-      doc.text('Deposit Paid:', totalsX, yPos)
-      doc.text(`-RM${invoice.deposit.toFixed(2)}`, 175, yPos)
+      doc.setFontSize(9)
+      doc.setTextColor(0, 0, 0)
+      doc.text('Deposit Paid:', labelX, yPos)
+      doc.text(`-RM${invoice.deposit.toFixed(2)}`, amountX, yPos)
       yPos += 8
       
       // Line above balance
-      doc.setTextColor(0, 0, 0)
-      doc.line(totalsX, yPos, 190, yPos)
+      doc.setDrawColor(0, 0, 0)
+      doc.line(120, yPos, 190, yPos)
       yPos += 5
       
       // Balance Due
-      doc.setFontSize(12)
-      doc.setTextColor(249, 115, 22) // Orange color
-      doc.text('BALANCE DUE:', totalsX, yPos)
-      doc.text(`RM${(invoice.balanceDue || 0).toFixed(2)}`, 175, yPos)
-      yPos += 10
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(0, 0, 0)
+      doc.text('BALANCE DUE:', labelX, yPos)
+      doc.text(`RM${(invoice.balanceDue || 0).toFixed(2)}`, amountX, yPos)
+      doc.setFont('helvetica', 'normal')
+      yPos += 8
+    }
+    
+    // DirectLending section (if applicable)
+    if (invoice.useDirectLending && invoice.directLendingAmount > 0) {
+      doc.setFontSize(9)
+      doc.setTextColor(0, 0, 0)
+      doc.text('DirectLending:', labelX, yPos)
+      doc.text(`-RM${invoice.directLendingAmount.toFixed(2)}`, amountX, yPos)
+      yPos += 8
+      
+      // Line above customer payable
+      doc.setDrawColor(0, 0, 0)
+      doc.line(120, yPos, 190, yPos)
+      yPos += 5
+      
+      // Customer Payable Amount
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(0, 0, 0)
+      doc.text('CUSTOMER PAYABLE:', labelX, yPos)
+      doc.text(`RM${(invoice.customerPayableAmount || 0).toFixed(2)}`, amountX, yPos)
+      doc.setFont('helvetica', 'normal')
+      yPos += 8
+      
+      // DirectLending remark
+      doc.setFontSize(8)
+      doc.setTextColor(102, 102, 102)
+      const remarkText = `* DirectLending installment: RM${invoice.directLendingAmount.toFixed(2)}`
+      doc.text(remarkText, 20, yPos)
+      yPos += 8
     }
     
     yPos += 10
