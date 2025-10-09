@@ -49,13 +49,13 @@ class PDFGenerator {
     if (!logoLoaded) {
       doc.setFontSize(24)
       doc.setTextColor(220, 38, 38) // Red
-      doc.text('BYKI Lite', 20, 25)
+      doc.text('One X Transmission', 20, 25)
     }
     
     // Company subtitle - position it below logo/text
     doc.setFontSize(12)
     doc.setTextColor(0, 0, 0)
-    doc.text('Business Management System', 20, 35)
+    doc.text('Gearbox Specialist', 20, 35)
     
     // Document Title and Number - Check if this is a quotation
     doc.setFontSize(18)
@@ -204,28 +204,73 @@ class PDFGenerator {
     // Items
     doc.setTextColor(0, 0, 0)
     let subtotal = 0
+    const docPageHeight = doc.internal.pageSize.height
+    const bottomMargin = 80 // Reserve space for totals and payment info footer
     
     if (invoice.items && invoice.items.length > 0) {
       invoice.items.forEach((item, index) => {
+        // Calculate row height needed
+        const description = doc.splitTextToSize(item.namaProduk || 'Unknown Item', 60)
+        const rowHeight = Math.max(10, description.length * 4)
+        
+        // Check if we need a new page - only break if we're truly running out of space
+        // On first page: allow up to position 200 (leaving ~95 for footer)
+        // On continuation pages: allow up to position 240 (leaving ~55 for footer on last page)
+        const maxYPos = doc.internal.getCurrentPageInfo().pageNumber === 1 ? 200 : 240
+        
+        if (yPos + rowHeight > maxYPos) {
+          // Create new page
+          doc.addPage()
+          
+          // Re-add header on new page
+          doc.setFontSize(24)
+          doc.setTextColor(220, 38, 38)
+          doc.text('One X Transmission', 20, 25)
+          doc.setFontSize(12)
+          doc.setTextColor(0, 0, 0)
+          doc.text('Gearbox Specialist', 20, 35)
+          
+          // Document info
+          const documentTitle = invoice.isQuotation || invoice.type === 'quotation' ? 'QUOTATION' : 'INVOICE'
+          doc.setFontSize(18)
+          doc.text(documentTitle, 150, 25)
+          doc.setFontSize(12)
+          doc.setTextColor(220, 38, 38)
+          const documentNumber = invoice.isQuotation || invoice.type === 'quotation' 
+            ? (invoice.quotationNumber || invoice.invoiceNumber || 'QUO-001') 
+            : (invoice.invoiceNumber || 'INV-001')
+          doc.text(documentNumber, 150, 32)
+          
+          // Reset yPos and redraw table header
+          yPos = 50
+          doc.setFillColor(220, 38, 38)
+          doc.rect(20, yPos, 170, 10, 'F')
+          doc.setTextColor(255, 255, 255)
+          doc.setFontSize(9)
+          doc.text('Item', 22, yPos + 7)
+          doc.text('Description', 50, yPos + 7)
+          doc.text('Qty', 120, yPos + 7)
+          doc.text('Rate', 140, yPos + 7)
+          doc.text('Amount', 170, yPos + 7)
+          yPos += 15
+        }
+        
         // Alternate row background
         if (index % 2 === 1) {
           doc.setFillColor(248, 248, 248)
-          doc.rect(20, yPos - 3, 170, 10, 'F')
+          doc.rect(20, yPos - 3, 170, rowHeight, 'F')
         }
         
+        doc.setTextColor(0, 0, 0)
         doc.setFontSize(8)
         doc.text(item.kodProduk || 'N/A', 22, yPos + 2)
-        
-        // Wrap long descriptions
-        const description = doc.splitTextToSize(item.namaProduk || 'Unknown Item', 60)
         doc.text(description, 50, yPos + 2)
-        
         doc.text((item.quantity || 1).toString(), 120, yPos + 2)
         doc.text(`RM${(item.finalPrice || 0).toFixed(2)}`, 140, yPos + 2)
         doc.text(`RM${(item.totalPrice || 0).toFixed(2)}`, 170, yPos + 2)
         
         subtotal += item.totalPrice || 0
-        yPos += Math.max(10, description.length * 4)
+        yPos += rowHeight
       })
     }
     
@@ -321,18 +366,11 @@ class PDFGenerator {
       doc.text(`RM${(invoice.customerPayableAmount || 0).toFixed(2)}`, amountX, yPos)
       doc.setFont('helvetica', 'normal')
       yPos += 8
-      
-      // DirectLending remark
-      doc.setFontSize(8)
-      doc.setTextColor(102, 102, 102)
-      const remarkText = `* DirectLending installment: RM${invoice.directLendingAmount.toFixed(2)}`
-      doc.text(remarkText, 20, yPos)
-      yPos += 8
     }
     
     yPos += 10
     
-    // Terms for quotations or Payment Terms for invoices
+    // Terms for quotations only
     if (invoice.isQuotation || invoice.type === 'quotation') {
       if (invoice.terms) {
         doc.setFontSize(9)
@@ -342,13 +380,6 @@ class PDFGenerator {
         const termsLines = doc.splitTextToSize(invoice.terms, 170)
         doc.text(termsLines, 20, yPos)
         yPos += termsLines.length * 5 + 8
-      }
-    } else {
-      if (invoice.paymentTerms) {
-        doc.setFontSize(9)
-        doc.setTextColor(102, 102, 102)
-        doc.text(`Payment Terms: ${invoice.paymentTerms}`, 20, yPos)
-        yPos += 8
       }
     }
     
@@ -378,29 +409,20 @@ class PDFGenerator {
     
     // Footer
     const pageHeight = doc.internal.pageSize.height
-    doc.setFontSize(8)
-    doc.setTextColor(102, 102, 102)
-    
-    if (invoice.isQuotation || invoice.type === 'quotation') {
-      doc.text('Thank you for considering One X Transmission!', 105, pageHeight - 52, { align: 'center' })
-      doc.text('Gearbox Specialist - Please contact us to proceed with this quotation.', 105, pageHeight - 45, { align: 'center' })
-    } else {
-      doc.text('Thank you for choosing One X Transmission!', 105, pageHeight - 52, { align: 'center' })
-      doc.text('Gearbox Specialist - For inquiries, please contact us at your earliest convenience.', 105, pageHeight - 45, { align: 'center' })
-    }
     
     // Payment Information
     doc.setFontSize(7)
     doc.setTextColor(0, 0, 0)
-    doc.text('1. Method Of Payment : Cash / Debit & Credit Card/ Cheque/ Bank in/ Online Transfer.', 20, pageHeight - 35)
-    doc.text('2. Any indirect transaction, payment must be made into One X Transmission Bank Account. The details of the account are as follow:', 20, pageHeight - 30)
+    doc.text('1. Method Of Payment : Cash / Debit & Credit Card/ Cheque/ Bank in/ Online Transfer.', 20, pageHeight - 45)
+    doc.text('2. Any indirect transaction, payment must be made into One X Transmission Bank Account.', 20, pageHeight - 38)
+    doc.text('   The details of the account are as follow:', 20, pageHeight - 33)
     doc.setFont('helvetica', 'bold')
-    doc.text('OneXtransmission (MAYBANK): 562786117821', 20, pageHeight - 25)
+    doc.text('   OneXtransmission (MAYBANK): 562786117821', 20, pageHeight - 28)
     doc.setFont('helvetica', 'normal')
     
     doc.setFontSize(8)
     doc.setTextColor(102, 102, 102)
-    doc.text(`Generated on ${new Date().toLocaleDateString('en-MY')}`, 105, pageHeight - 10, { align: 'center' })
+    doc.text(`Generated on ${new Date().toLocaleDateString('en-MY')}`, 105, pageHeight - 15, { align: 'center' })
     
     return doc
   }

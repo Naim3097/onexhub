@@ -40,6 +40,17 @@ function CustomerInvoiceCreation({ setActiveSection }) {
   const [commissionValue, setCommissionValue] = useState(0)
   const [commissionAmount, setCommissionAmount] = useState(0)
   
+  // Supplier cost for commission calculation
+  const [totalPartsSupplierCost, setTotalPartsSupplierCost] = useState(0)
+  
+  // Commission distribution
+  const [commissionDistributionType, setCommissionDistributionType] = useState('individual') // 'individual' or 'team'
+  const [selectedMechanicForCommission, setSelectedMechanicForCommission] = useState(null)
+  const [teamMembers, setTeamMembers] = useState([
+    { mechanic: null, percentage: 50 },
+    { mechanic: null, percentage: 50 }
+  ])
+  
   const [invoiceHistory, setInvoiceHistory] = useState([])
   const [isLoadingInvoices, setIsLoadingInvoices] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -270,10 +281,15 @@ function CustomerInvoiceCreation({ setActiveSection }) {
     const directLending = useDirectLending ? Number(directLendingAmount) || 0 : 0
     const customerPayableAmount = useDirectLending ? balanceDue - directLending : balanceDue
     
-    // Calculate commission (based on total before deposit and DirectLending)
+    // NEW: Calculate commission based on parts revenue + labour
+    // Parts Revenue = Customer Price - Supplier Cost
+    const supplierCost = Number(totalPartsSupplierCost) || 0
+    const partsRevenue = partsTotal - supplierCost
+    const commissionBase = partsRevenue + laborTotal // Parts revenue + labour (no discount deduction)
+    
     let calcCommission = 0
     if (commissionType === 'percentage') {
-      calcCommission = (total * commissionValue) / 100
+      calcCommission = (commissionBase * commissionValue) / 100
     } else {
       calcCommission = commissionValue
     }
@@ -288,6 +304,9 @@ function CustomerInvoiceCreation({ setActiveSection }) {
       balanceDue, 
       directLendingAmount: directLending,
       customerPayableAmount,
+      partsSupplierCost: supplierCost,
+      partsRevenue,
+      commissionBase,
       commission: calcCommission 
     }
   }
@@ -296,7 +315,7 @@ function CustomerInvoiceCreation({ setActiveSection }) {
   useEffect(() => {
     const totals = calculateTotals()
     setCommissionAmount(totals.commission)
-  }, [commissionType, commissionValue, manualParts, laborCharges, discount, deposit, useDirectLending, directLendingAmount])
+  }, [commissionType, commissionValue, manualParts, laborCharges, discount, deposit, useDirectLending, directLendingAmount, totalPartsSupplierCost])
 
   const addManualPart = () => {
     setManualParts([...manualParts, {
@@ -383,6 +402,14 @@ function CustomerInvoiceCreation({ setActiveSection }) {
         commissionType: commissionType,
         commissionValue: commissionValue,
         commissionAmount: totals.commission,
+        // NEW: Supplier cost and commission distribution
+        partsSupplierCost: totals.partsSupplierCost,
+        partsRevenue: totals.partsRevenue,
+        commissionBase: totals.commissionBase,
+        commissionDistributionType: commissionDistributionType,
+        commissionDistribution: commissionDistributionType === 'individual' 
+          ? { mechanic: selectedMechanicForCommission, percentage: 100 }
+          : { teamMembers: teamMembers.map(tm => ({ mechanicId: tm.mechanic?.id, mechanicName: tm.mechanic?.name, percentage: tm.percentage })) },
         dateCreated: new Date(),
         dueDate: new Date(Date.now() + paymentTerms * 24 * 60 * 60 * 1000)
       }
@@ -975,13 +1002,34 @@ function CustomerInvoiceCreation({ setActiveSection }) {
 
               {/* Mechanic Commission Section (Internal Only) */}
               {selectedMechanic && (
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 space-y-4">
                   <h4 className="text-sm font-semibold text-orange-900 mb-3 flex items-center">
                     <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"/>
                     </svg>
                     Mechanic Commission (Internal - Not shown on customer invoice)
                   </h4>
+
+                  {/* Supplier Cost Input */}
+                  <div className="bg-white border border-orange-300 rounded-lg p-3">
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Total Parts Cost (Supplier) *
+                    </label>
+                    <input
+                      type="number"
+                      value={totalPartsSupplierCost}
+                      onChange={(e) => setTotalPartsSupplierCost(parseFloat(e.target.value) || 0)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      placeholder="Enter total supplier cost for all parts"
+                      min="0"
+                      step="0.01"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Enter the total cost you paid to suppliers for all parts in this invoice
+                    </p>
+                  </div>
+
+                  {/* Commission Type Selection */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">Commission Type</label>
@@ -1009,19 +1057,209 @@ function CustomerInvoiceCreation({ setActiveSection }) {
                       />
                     </div>
                   </div>
-                  <div className="mt-3 pt-3 border-t border-orange-200">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-gray-700">
-                        Commission for {selectedMechanic.name}:
-                      </span>
-                      <span className="text-lg font-bold text-orange-600">
-                        {formatCurrency(commissionAmount)}
-                      </span>
+
+                  {/* Commission Distribution Type */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">Commission Distribution</label>
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setCommissionDistributionType('individual')}
+                        className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          commissionDistributionType === 'individual'
+                            ? 'bg-orange-600 text-white'
+                            : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        Individual
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCommissionDistributionType('team')}
+                        className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          commissionDistributionType === 'team'
+                            ? 'bg-orange-600 text-white'
+                            : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        Team (2 members)
+                      </button>
                     </div>
-                    {commissionType === 'percentage' && (
-                      <p className="text-xs text-gray-600 mt-1">
-                        {commissionValue}% of total amount ({formatCurrency(calculateTotals().total)})
+                  </div>
+
+                  {/* Individual Commission */}
+                  {commissionDistributionType === 'individual' && (
+                    <div className="bg-white border border-orange-300 rounded-lg p-3">
+                      <label className="block text-xs font-medium text-gray-700 mb-2">Select Mechanic</label>
+                      <select
+                        value={selectedMechanicForCommission?.id || ''}
+                        onChange={(e) => {
+                          const mech = mechanics.find(m => m.id === e.target.value)
+                          setSelectedMechanicForCommission(mech || null)
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      >
+                        <option value="">Select mechanic...</option>
+                        {mechanics.map(mech => (
+                          <option key={mech.id} value={mech.id}>{mech.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Team Commission */}
+                  {commissionDistributionType === 'team' && (
+                    <div className="bg-white border border-orange-300 rounded-lg p-3 space-y-3">
+                      <label className="block text-xs font-medium text-gray-700 mb-2">Team Members & Split</label>
+                      
+                      {/* Member 1 */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-gray-600 mb-1">Member 1</label>
+                          <select
+                            value={teamMembers[0]?.mechanic?.id || ''}
+                            onChange={(e) => {
+                              const mech = mechanics.find(m => m.id === e.target.value)
+                              setTeamMembers([
+                                { ...teamMembers[0], mechanic: mech || null },
+                                teamMembers[1]
+                              ])
+                            }}
+                            className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                          >
+                            <option value="">Select...</option>
+                            {mechanics.map(mech => (
+                              <option key={mech.id} value={mech.id}>{mech.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-600 mb-1">Split %</label>
+                          <input
+                            type="number"
+                            value={teamMembers[0]?.percentage || 50}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value) || 0
+                              setTeamMembers([
+                                { ...teamMembers[0], percentage: val },
+                                { ...teamMembers[1], percentage: 100 - val }
+                              ])
+                            }}
+                            className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Member 2 */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-gray-600 mb-1">Member 2</label>
+                          <select
+                            value={teamMembers[1]?.mechanic?.id || ''}
+                            onChange={(e) => {
+                              const mech = mechanics.find(m => m.id === e.target.value)
+                              setTeamMembers([
+                                teamMembers[0],
+                                { ...teamMembers[1], mechanic: mech || null }
+                              ])
+                            }}
+                            className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                          >
+                            <option value="">Select...</option>
+                            {mechanics.map(mech => (
+                              <option key={mech.id} value={mech.id}>{mech.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-600 mb-1">Split %</label>
+                          <input
+                            type="number"
+                            value={teamMembers[1]?.percentage || 50}
+                            className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm bg-gray-100"
+                            disabled
+                          />
+                        </div>
+                      </div>
+                      
+                      <p className="text-xs text-gray-500 mt-2">
+                        Split percentages must total 100%. Member 2's percentage auto-adjusts.
                       </p>
+                    </div>
+                  )}
+
+                  {/* Commission Breakdown */}
+                  <div className="mt-3 pt-3 border-t border-orange-200 bg-white rounded-lg p-3">
+                    <h5 className="text-xs font-semibold text-gray-700 mb-2">Commission Calculation:</h5>
+                    <div className="space-y-1 text-xs text-gray-600">
+                      <div className="flex justify-between">
+                        <span>Parts (Customer):</span>
+                        <span className="font-medium">{formatCurrency(calculateTotals().partsTotal)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Parts (Supplier Cost):</span>
+                        <span className="font-medium text-red-600">-{formatCurrency(calculateTotals().partsSupplierCost)}</span>
+                      </div>
+                      <div className="flex justify-between border-t pt-1">
+                        <span>Parts Revenue:</span>
+                        <span className="font-medium text-green-600">{formatCurrency(calculateTotals().partsRevenue)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Labour:</span>
+                        <span className="font-medium">{formatCurrency(calculateTotals().laborTotal)}</span>
+                      </div>
+                      <div className="flex justify-between border-t pt-1 font-semibold">
+                        <span>Commission Base:</span>
+                        <span className="text-blue-600">{formatCurrency(calculateTotals().commissionBase)}</span>
+                      </div>
+                      {commissionType === 'percentage' && (
+                        <div className="flex justify-between text-xs">
+                          <span>Rate:</span>
+                          <span>{commissionValue}%</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between border-t pt-1 text-sm font-bold">
+                        <span>Total Commission:</span>
+                        <span className="text-orange-600">{formatCurrency(commissionAmount)}</span>
+                      </div>
+                    </div>
+
+                    {/* Distribution Breakdown */}
+                    {commissionDistributionType === 'individual' && selectedMechanicForCommission && (
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-gray-700">
+                            {selectedMechanicForCommission.name}:
+                          </span>
+                          <span className="text-base font-bold text-orange-600">
+                            {formatCurrency(commissionAmount)}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {commissionDistributionType === 'team' && teamMembers[0]?.mechanic && teamMembers[1]?.mechanic && (
+                      <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-gray-700">
+                            {teamMembers[0].mechanic.name} ({teamMembers[0].percentage}%):
+                          </span>
+                          <span className="text-base font-bold text-orange-600">
+                            {formatCurrency((commissionAmount * teamMembers[0].percentage) / 100)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-gray-700">
+                            {teamMembers[1].mechanic.name} ({teamMembers[1].percentage}%):
+                          </span>
+                          <span className="text-base font-bold text-orange-600">
+                            {formatCurrency((commissionAmount * teamMembers[1].percentage) / 100)}
+                          </span>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>

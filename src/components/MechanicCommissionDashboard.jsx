@@ -71,66 +71,109 @@ function MechanicCommissionDashboard() {
     const mechanicGroups = {}
     
     invoices.forEach(invoice => {
-      const mechanicName = invoice.mechanicName || 'Unknown'
-      const mechanicId = invoice.mechanicId || 'unknown'
+      const commissionAmount = invoice.commissionAmount || 0
+      const distributionType = invoice.commissionDistributionType || 'individual'
       
-      if (!mechanicGroups[mechanicName]) {
-        mechanicGroups[mechanicName] = {
-          id: mechanicId,
-          name: mechanicName,
-          invoices: [],
-          totalRevenue: 0,
-          totalCommission: 0,
-          paidCommission: 0,
-          pendingCommission: 0,
-          invoiceCount: 0,
-          paidInvoices: 0,
-          pendingInvoices: 0,
-          percentageCommissions: 0,
-          fixedCommissions: 0
+      if (distributionType === 'team' && invoice.commissionDistribution?.teamMembers) {
+        // Handle team distribution - split commission among team members
+        invoice.commissionDistribution.teamMembers.forEach(member => {
+          const mechanicName = member.mechanicName || 'Unknown'
+          const mechanicId = member.mechanicId || 'unknown'
+          const memberCommission = (commissionAmount * member.percentage) / 100
+          
+          if (!mechanicGroups[mechanicName]) {
+            mechanicGroups[mechanicName] = {
+              id: mechanicId,
+              name: mechanicName,
+              invoices: [],
+              totalRevenue: 0,
+              totalCommission: 0,
+              paidCommission: 0,
+              pendingCommission: 0,
+              invoiceCount: 0,
+              paidInvoices: 0,
+              pendingInvoices: 0,
+              individualCommissions: 0,
+              teamCommissions: 0,
+              totalPartsRevenue: 0,
+              totalLabour: 0,
+              teamInvoices: 0
+            }
+          }
+          
+          mechanicGroups[mechanicName].invoices.push({
+            ...invoice,
+            memberCommission,
+            memberPercentage: member.percentage,
+            isTeamInvoice: true
+          })
+          
+          // Calculate proportional parts revenue and labour
+          const proportionalPartsRevenue = (invoice.partsRevenue || 0) * (member.percentage / 100)
+          const proportionalLabour = (invoice.totalLabour || 0) * (member.percentage / 100)
+          
+          mechanicGroups[mechanicName].totalRevenue += (invoice.total || 0) * (member.percentage / 100)
+          mechanicGroups[mechanicName].totalCommission += memberCommission
+          mechanicGroups[mechanicName].teamCommissions += memberCommission
+          mechanicGroups[mechanicName].totalPartsRevenue += proportionalPartsRevenue
+          mechanicGroups[mechanicName].totalLabour += proportionalLabour
+          mechanicGroups[mechanicName].teamInvoices += 1
+          mechanicGroups[mechanicName].invoiceCount += 1
+          
+          // Track payment status and separate paid/pending commissions
+          if (invoice.paymentStatus === 'paid') {
+            mechanicGroups[mechanicName].paidInvoices += 1
+            mechanicGroups[mechanicName].paidCommission += memberCommission
+          } else {
+            mechanicGroups[mechanicName].pendingInvoices += 1
+            mechanicGroups[mechanicName].pendingCommission += memberCommission
+          }
+        })
+      } else {
+        // Handle individual distribution (original logic)
+        const mechanicName = invoice.mechanicName || 'Unknown'
+        const mechanicId = invoice.mechanicId || 'unknown'
+        
+        if (!mechanicGroups[mechanicName]) {
+          mechanicGroups[mechanicName] = {
+            id: mechanicId,
+            name: mechanicName,
+            invoices: [],
+            totalRevenue: 0,
+            totalCommission: 0,
+            paidCommission: 0,
+            pendingCommission: 0,
+            invoiceCount: 0,
+            paidInvoices: 0,
+            pendingInvoices: 0,
+            individualCommissions: 0,
+            teamCommissions: 0,
+            totalPartsRevenue: 0,
+            totalLabour: 0,
+            teamInvoices: 0
+          }
+        }
+        
+        mechanicGroups[mechanicName].invoices.push({
+          ...invoice,
+          isTeamInvoice: false
+        })
+        mechanicGroups[mechanicName].totalRevenue += invoice.total || 0
+        mechanicGroups[mechanicName].totalCommission += commissionAmount
+        mechanicGroups[mechanicName].individualCommissions += commissionAmount
+        mechanicGroups[mechanicName].totalPartsRevenue += invoice.partsRevenue || 0
+        mechanicGroups[mechanicName].totalLabour += invoice.totalLabour || 0
+        mechanicGroups[mechanicName].invoiceCount += 1
+        
+        // Track payment status and separate paid/pending commissions
+        if (invoice.paymentStatus === 'paid') {
+          mechanicGroups[mechanicName].paidInvoices += 1
+          mechanicGroups[mechanicName].paidCommission += commissionAmount
+        } else {
+          mechanicGroups[mechanicName].pendingInvoices += 1
+          mechanicGroups[mechanicName].pendingCommission += commissionAmount
         }
       }
-      
-      mechanicGroups[mechanicName].invoices.push(invoice)
-      mechanicGroups[mechanicName].totalRevenue += invoice.total || 0
-      
-      // Use the stored commission amount from invoice
-      const commissionAmount = invoice.commissionAmount || 0
-      mechanicGroups[mechanicName].totalCommission += commissionAmount
-      
-      // Track commission types
-      if (invoice.commissionType === 'percentage') {
-        mechanicGroups[mechanicName].percentageCommissions += commissionAmount
-      } else if (invoice.commissionType === 'fixed') {
-        mechanicGroups[mechanicName].fixedCommissions += commissionAmount
-      }
-      
-      mechanicGroups[mechanicName].invoiceCount += 1
-      
-      // Track payment status and separate paid/pending commissions
-      if (invoice.paymentStatus === 'paid') {
-        mechanicGroups[mechanicName].paidInvoices += 1
-        mechanicGroups[mechanicName].paidCommission += commissionAmount
-      } else {
-        mechanicGroups[mechanicName].pendingInvoices += 1
-        mechanicGroups[mechanicName].pendingCommission += commissionAmount
-      }
-    })
-
-    // Calculate additional metrics for each mechanic
-    Object.values(mechanicGroups).forEach(mechanic => {
-      // Calculate average invoice value
-      mechanic.averageInvoiceValue = mechanic.invoiceCount > 0 
-        ? mechanic.totalRevenue / mechanic.invoiceCount 
-        : 0
-        
-      // Calculate commission efficiency (commission/revenue ratio)
-      mechanic.commissionEfficiency = mechanic.totalRevenue > 0
-        ? (mechanic.totalCommission / mechanic.totalRevenue) * 100
-        : 0
-        
-      // Calculate average commission rate
-      mechanic.averageCommissionRate = mechanic.commissionEfficiency.toFixed(2)
     })
 
     return Object.values(mechanicGroups)
@@ -310,8 +353,8 @@ function MechanicCommissionDashboard() {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-black-75 uppercase tracking-wider">Mechanic</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-black-75 uppercase tracking-wider">Invoices</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-black-75 uppercase tracking-wider">Revenue</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-black-75 uppercase tracking-wider">Avg. Commission %</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-black-75 uppercase tracking-wider">Commission Type</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-black-75 uppercase tracking-wider">Parts Revenue</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-black-75 uppercase tracking-wider">Total Commission</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-black-75 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -329,22 +372,30 @@ function MechanicCommissionDashboard() {
                       <div className="text-xs text-yellow-600">{mechanic.pendingInvoices} pending</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-primary-black">
-                      {formatCurrency(mechanic.totalRevenue)}
+                      <div className="flex flex-col gap-1">
+                        {mechanic.individualCommissions > 0 && (
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
+                            👤 Individual: {formatCurrency(mechanic.individualCommissions)}
+                          </span>
+                        )}
+                        {mechanic.teamCommissions > 0 && (
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-purple-100 text-purple-800">
+                            👥 Team: {formatCurrency(mechanic.teamCommissions)}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-primary-black">
-                      {mechanic.averageCommissionRate}%
+                      <div>{formatCurrency(mechanic.totalPartsRevenue || 0)}</div>
+                      <div className="text-xs text-black-50">+ Labour: {formatCurrency(mechanic.totalLabour || 0)}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-xl font-bold text-primary-red">
-                        {formatCurrency(mechanic.paidCommission)}
+                        {formatCurrency(mechanic.totalCommission)}
                       </div>
-                      {(mechanic.percentageCommissions > 0 || mechanic.fixedCommissions > 0) && (
-                        <div className="text-xs text-black-50 mt-1">
-                          {mechanic.percentageCommissions > 0 && <span>% based</span>}
-                          {mechanic.percentageCommissions > 0 && mechanic.fixedCommissions > 0 && <span> + </span>}
-                          {mechanic.fixedCommissions > 0 && <span>Fixed</span>}
-                        </div>
-                      )}
+                      <div className="text-xs text-black-50 mt-1">
+                        Paid: {formatCurrency(mechanic.paidCommission)}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <button
