@@ -214,9 +214,9 @@ class PDFGenerator {
         const rowHeight = Math.max(10, description.length * 4)
         
         // Check if we need a new page - only break if we're truly running out of space
-        // On first page: allow up to position 200 (leaving ~95 for footer)
+        // On first page: allow up to position 215 (leaving ~80 for footer with payment info)
         // On continuation pages: allow up to position 240 (leaving ~55 for footer on last page)
-        const maxYPos = doc.internal.getCurrentPageInfo().pageNumber === 1 ? 200 : 240
+        const maxYPos = doc.internal.getCurrentPageInfo().pageNumber === 1 ? 215 : 240
         
         if (yPos + rowHeight > maxYPos) {
           // Create new page

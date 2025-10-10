@@ -176,6 +176,7 @@ function CustomerInvoiceCreation({ setActiveSection }) {
   }
 
   const editInvoice = (invoice) => {
+    console.log('📝 Editing invoice:', invoice)
     setSelectedInvoiceForEdit(invoice)
     setSelectedCustomer({
       id: invoice.customerId,
@@ -197,6 +198,13 @@ function CustomerInvoiceCreation({ setActiveSection }) {
     setSelectedMechanic(invoice.mechanicId ? mechanics.find(m => m.id === invoice.mechanicId) : null)
     setCommissionType(invoice.commissionType || 'percentage')
     setCommissionValue(invoice.commissionValue || 0)
+    // Load supplier cost and commission distribution
+    setTotalPartsSupplierCost(invoice.partsSupplierCost || 0)
+    setSelectedMechanicForCommission(invoice.selectedMechanicForCommission || null)
+    setCommissionDistribution(invoice.commissionDistribution || 'individual')
+    setTeamMembers(invoice.teamMembers || [{ mechanicId: null, percentage: 50 }, { mechanicId: null, percentage: 50 }])
+    
+    console.log('✅ Edit modal should open now')
     setShowEditInvoiceModal(true)
   }
 
@@ -462,6 +470,13 @@ function CustomerInvoiceCreation({ setActiveSection }) {
         commissionType: commissionType,
         commissionValue: commissionValue,
         commissionAmount: totals.commission,
+        partsSupplierCost: totals.partsSupplierCost,
+        partsRevenue: totals.partsRevenue,
+        commissionBase: totals.commissionBase,
+        // Commission distribution
+        selectedMechanicForCommission: selectedMechanicForCommission,
+        commissionDistribution: commissionDistribution,
+        teamMembers: teamMembers,
         dueDate: new Date(selectedInvoiceForEdit.dateCreated.getTime() + paymentTerms * 24 * 60 * 60 * 1000)
       }
 

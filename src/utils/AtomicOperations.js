@@ -90,6 +90,7 @@ export class AtomicOperations {
         const invoiceRef = doc(db, 'invoices', invoiceId)
         const updatedInvoice = {
           ...modifiedInvoice,
+          dateCreated: timestamp, // Update invoice date to today when editing
           updatedAt: timestamp,
           editCount: (originalInvoice.editCount || 0) + 1,
           lastEditedAt: timestamp,

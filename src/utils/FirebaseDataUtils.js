@@ -338,9 +338,11 @@ export const getAllCustomerInvoices = async () => {
 export const updateCustomerInvoice = async (invoiceId, updatedData) => {
   try {
     const invoiceRef = doc(db, 'customer_invoices', invoiceId)
+    const timestamp = new Date()
     await updateDoc(invoiceRef, {
       ...updatedData,
-      updatedAt: new Date()
+      dateCreated: timestamp, // Update invoice date to today when editing
+      updatedAt: timestamp
     })
   } catch (error) {
     console.error('Error updating customer invoice:', error)
