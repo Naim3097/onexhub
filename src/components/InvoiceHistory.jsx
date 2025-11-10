@@ -2,9 +2,12 @@ import { useState } from 'react'
 import { useInvoiceContext } from '../context/InvoiceContext'
 import { usePartsContext } from '../context/PartsContext'
 import InvoicePreview from './InvoicePreview'
+import SimpleEditInvoiceModal from './SimpleEditInvoiceModal'
 import PDFGenerator from '../utils/PDFGenerator'
 
 function InvoiceHistory() {
+  console.log('🔴 InvoiceHistory COMPONENT RENDERING')
+  
   const { 
     invoices, 
     searchInvoices, 
@@ -14,9 +17,16 @@ function InvoiceHistory() {
     deleteInvoice
   } = useInvoiceContext()
   const { parts } = usePartsContext()
+  
+  console.log('🔴 INVOICES COUNT:', invoices?.length || 0)
+  console.log('🔴 INVOICES DATA:', invoices)
+  
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedInvoice, setSelectedInvoice] = useState(null)
+  const [editingInvoice, setEditingInvoice] = useState(null)
   const [deletingInvoiceId, setDeletingInvoiceId] = useState(null)
+  
+  console.log('🔴 editingInvoice STATE:', editingInvoice?.id || 'null')
   const [dateFilter, setDateFilter] = useState({
     startDate: '',
     endDate: ''
@@ -98,14 +108,47 @@ function InvoiceHistory() {
     PDFGenerator.generateInvoicePDF(invoice)
   }
 
+  // Handle edit button click
+  const handleEditClick = (invoice) => {
+    alert('EDIT BUTTON CLICKED!\n\nInvoice: ' + invoice.invoiceNumber + '\nID: ' + invoice.id)
+    console.log('🔴 EDIT CLICKED:', invoice)
+    setEditingInvoice(invoice)
+    console.log('🔴 editingInvoice SET TO:', invoice.id)
+  }
+
+  // Handle edit success
+  const handleEditSuccess = (updatedInvoice) => {
+    setEditingInvoice(null)
+  }
+
   return (
     <div className="space-y-6">
+      {/* TEST BUTTON */}
+      <div className="bg-yellow-200 border-4 border-red-500 p-8">
+        <button 
+          onClick={() => {
+            alert('TEST BUTTON CLICKED!')
+            console.log('🔵 TEST BUTTON - invoices:', invoices.length)
+            console.log('🔵 First invoice:', invoices[0])
+            if (invoices[0]) {
+              setEditingInvoice(invoices[0])
+            } else {
+              alert('NO INVOICES FOUND!')
+            }
+          }}
+          className="btn-primary text-2xl p-6"
+          style={{ backgroundColor: 'red', color: 'white', fontSize: '24px', padding: '20px' }}
+        >
+          � TEST EDIT BUTTON - CLICK ME 🔴
+        </button>
+      </div>
+
       {/* Section Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="section-title">Invoice History</h2>
           <p className="text-black-75 text-body">
-            View and manage all generated invoices
+            View and manage all generated invoices ({invoices.length} total)
           </p>
         </div>
       </div>
@@ -230,12 +273,21 @@ function InvoiceHistory() {
                           <button
                             onClick={() => setSelectedInvoice(invoice)}
                             className="btn-tertiary text-small py-1 px-3 min-h-[44px] sm:min-h-auto"
+                            title="View invoice details"
                           >
                             View
                           </button>
                           <button
+                            onClick={() => handleEditClick(invoice)}
+                            className="btn-secondary text-small py-1 px-3 min-h-[44px] sm:min-h-auto"
+                            title="Edit invoice and adjust stock"
+                          >
+                            Edit
+                          </button>
+                          <button
                             onClick={() => downloadPDF(invoice)}
                             className="btn-tertiary text-small py-1 px-3 min-h-[44px] sm:min-h-auto"
+                            title="Download PDF"
                           >
                             PDF
                           </button>
@@ -271,6 +323,23 @@ function InvoiceHistory() {
           onClose={() => setSelectedInvoice(null)}
           isViewMode={true}
         />
+      )}
+
+      {/* Edit Invoice Modal */}
+      {editingInvoice ? (
+        <>
+          {console.log('🔴 RENDERING MODAL FOR:', editingInvoice.id)}
+          <SimpleEditInvoiceModal
+            invoice={editingInvoice}
+            onClose={() => {
+              console.log('🔴 MODAL CLOSE CLICKED')
+              setEditingInvoice(null)
+            }}
+            onSuccess={handleEditSuccess}
+          />
+        </>
+      ) : (
+        console.log('🔴 NO EDITING INVOICE - MODAL NOT SHOWN')
       )}
     </div>
   )

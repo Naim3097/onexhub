@@ -19,19 +19,34 @@ import AuditTrail from '../utils/AuditTrail'
 import PerformanceOptimizer from '../utils/PerformanceOptimizer'
 import StockReconciliation from '../utils/StockReconciliation'
 
-export const useInvoiceEditor = (invoiceId) => {
-  const [invoice, setInvoice] = useState(null)
-  const [loading, setLoading] = useState(true)
+export const useInvoiceEditor = (invoiceId, invoiceProp = null) => {
+  const [invoice, setInvoice] = useState(invoiceProp)
+  const [loading, setLoading] = useState(!invoiceProp)
   const [error, setError] = useState(null)
   const [editSession, setEditSession] = useState(null)
 
-  // Load invoice data
+  // Set invoice from prop if provided
+  useEffect(() => {
+    if (invoiceProp) {
+      console.log('🔧 useInvoiceEditor - setting invoice from prop:', invoiceProp.id)
+      setInvoice(invoiceProp)
+      setLoading(false)
+    }
+  }, [invoiceProp])
+
+  // Load invoice data from Firebase (as fallback or for updates)
   useEffect(() => {
     if (!invoiceId) {
       setLoading(false)
       return
     }
 
+    // If we already have invoice from prop, skip Firebase loading
+    if (invoiceProp) {
+      return
+    }
+
+    console.log('🔧 useInvoiceEditor - loading invoice from Firebase:', invoiceId)
     const unsubscribe = onSnapshot(
       doc(db, 'invoices', invoiceId),
       (docSnapshot) => {
@@ -53,11 +68,15 @@ export const useInvoiceEditor = (invoiceId) => {
     )
 
     return () => unsubscribe()
-  }, [invoiceId])
+  }, [invoiceId, invoiceProp])
 
   // Start edit session with advanced conflict detection
   const startEdit = useCallback(async () => {
-    if (!invoice) return null
+    console.log('🔧 startEdit called - invoice:', invoice?.id, 'invoiceId:', invoiceId)
+    if (!invoice) {
+      console.warn('⚠️ Cannot start edit - invoice not loaded yet')
+      return null
+    }
 
     // Record edit start in audit trail
     await AuditTrail.recordEditStart(invoiceId, invoice)

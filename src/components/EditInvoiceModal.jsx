@@ -11,10 +11,12 @@ import StockChangeSummary from './StockChangeSummary'
 import { useInvoiceEditor } from '../hooks/useInvoiceEditor'
 
 function EditInvoiceModal({ invoice, onClose, onSuccess }) {
+  console.log('🔧 EditInvoiceModal rendered with invoice:', invoice?.id, invoice?.invoiceNumber)
+  
   const { parts, loading: partsLoading, validateStockChanges } = usePartsContext()
   const { saveInvoiceEdit } = useInvoiceContext()
   
-  // Use our specialized invoice editor hook
+  // Use our specialized invoice editor hook - pass invoice as prop for immediate availability
   const {
     editSession,
     isEditing,
@@ -26,8 +28,18 @@ function EditInvoiceModal({ invoice, onClose, onSuccess }) {
     startEdit,
     updateEdit,
     saveEdit,
-    cancelEdit
-  } = useInvoiceEditor(invoice?.id)
+    cancelEdit,
+    loading: invoiceLoading
+  } = useInvoiceEditor(invoice?.id, invoice)
+  
+  console.log('🔧 EditInvoiceModal hook state:', { 
+    isEditing, 
+    hasSession: !!editSession,
+    partsLoading,
+    invoiceLoading,
+    invoiceId: invoice?.id,
+    invoiceNumber: invoice?.invoiceNumber
+  })
 
   // Local state for UI
   const [selectedParts, setSelectedParts] = useState([])
@@ -40,8 +52,11 @@ function EditInvoiceModal({ invoice, onClose, onSuccess }) {
 
   // Initialize edit session when modal opens
   useEffect(() => {
+    console.log('🔧 useEffect triggered - invoice:', invoice?.id, 'isEditing:', isEditing)
     if (invoice && !isEditing) {
+      console.log('🔧 Starting edit session...')
       const session = startEdit()
+      console.log('🔧 Edit session started:', session)
       if (session) {
         setSelectedParts([...session.currentInvoice.items])
         setCustomerInfo(session.currentInvoice.customerInfo || {
@@ -50,6 +65,9 @@ function EditInvoiceModal({ invoice, onClose, onSuccess }) {
           address: '15-G, JLN SG RASAU, KG SG RASAU, 42700 BANTING, SELANGOR'
         })
         setNotes(session.currentInvoice.notes || '')
+        console.log('🔧 State initialized with parts:', session.currentInvoice.items.length)
+      } else {
+        console.error('❌ Failed to start edit session!')
       }
     }
   }, [invoice, isEditing, startEdit])
@@ -192,18 +210,22 @@ function EditInvoiceModal({ invoice, onClose, onSuccess }) {
   }
 
   // Loading state
-  if (!invoice || partsLoading) {
+  if (!invoice || partsLoading || invoiceLoading) {
     return (
       <div className="modal-overlay">
         <div className="modal-content">
           <div className="flex items-center justify-center py-12">
             <div className="loading-spinner mr-3"></div>
-            <span className="text-black-75">Loading invoice...</span>
+            <span className="text-black-75">
+              {!invoice ? 'Loading invoice...' : 'Loading parts...'}
+            </span>
           </div>
         </div>
       </div>
     )
   }
+
+  console.log('🔧 EditInvoiceModal rendering main content - selectedParts:', selectedParts.length)
 
   const subtotal = calculateSubtotal()
   const total = calculateTotal()

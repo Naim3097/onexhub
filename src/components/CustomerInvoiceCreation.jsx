@@ -176,8 +176,10 @@ function CustomerInvoiceCreation({ setActiveSection }) {
   }
 
   const editInvoice = (invoice) => {
-    console.log('📝 Editing invoice:', invoice)
+    console.log('� EDIT INVOICE CLICKED:', invoice)
+    console.log('🔴 Setting selectedInvoiceForEdit to:', invoice.id)
     setSelectedInvoiceForEdit(invoice)
+    console.log('🔴 Setting selectedCustomer')
     setSelectedCustomer({
       id: invoice.customerId,
       name: invoice.customerName,
@@ -201,11 +203,12 @@ function CustomerInvoiceCreation({ setActiveSection }) {
     // Load supplier cost and commission distribution
     setTotalPartsSupplierCost(invoice.partsSupplierCost || 0)
     setSelectedMechanicForCommission(invoice.selectedMechanicForCommission || null)
-    setCommissionDistribution(invoice.commissionDistribution || 'individual')
+    setCommissionDistributionType(invoice.commissionDistribution || 'individual')
     setTeamMembers(invoice.teamMembers || [{ mechanicId: null, percentage: 50 }, { mechanicId: null, percentage: 50 }])
     
-    console.log('✅ Edit modal should open now')
+    console.log('🔴 About to call setShowEditInvoiceModal(true)')
     setShowEditInvoiceModal(true)
+    console.log('🔴 setShowEditInvoiceModal(true) CALLED - Modal should open!')
   }
 
   const downloadInvoice = (invoice) => {
@@ -1453,11 +1456,13 @@ function CustomerInvoiceCreation({ setActiveSection }) {
       )}
 
       {/* Edit Invoice Modal */}
-      {showEditInvoiceModal && selectedInvoiceForEdit && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-          <div className="bg-white rounded-lg p-6 w-full max-w-6xl max-h-[90vh] overflow-y-auto m-4">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-semibold text-gray-900">Edit Invoice: {selectedInvoiceForEdit.invoiceNumber}</h2>
+      {showEditInvoiceModal && selectedInvoiceForEdit ? (
+        <>
+          {console.log('🟢 EDIT MODAL RENDERING - showEditInvoiceModal:', showEditInvoiceModal, 'selectedInvoiceForEdit:', selectedInvoiceForEdit?.id)}
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+            <div className="bg-white rounded-lg p-6 w-full max-w-6xl max-h-[90vh] overflow-y-auto m-4">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-semibold text-gray-900">Edit Invoice: {selectedInvoiceForEdit.invoiceNumber}</h2>
               <button 
                 onClick={() => {
                   setShowEditInvoiceModal(false)
@@ -1880,6 +1885,9 @@ function CustomerInvoiceCreation({ setActiveSection }) {
             </div>
           </div>
         </div>
+        </>
+      ) : (
+        console.log('🔴 EDIT MODAL NOT SHOWN - showEditInvoiceModal:', showEditInvoiceModal, 'selectedInvoiceForEdit:', selectedInvoiceForEdit?.id || 'null')
       )}
 
       {/* Customer Selection Modal */}
@@ -1935,3 +1943,4 @@ function CustomerInvoiceCreation({ setActiveSection }) {
 }
 
 export default CustomerInvoiceCreation
+
