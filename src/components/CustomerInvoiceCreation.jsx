@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useCustomer } from '../context/CustomerContext'
 import { useTransaction } from '../context/TransactionContext'
 import { createCustomerInvoice, updateCustomerInvoice } from '../utils/FirebaseDataUtils'
-import { collection, query, orderBy, onSnapshot, getDocs } from 'firebase/firestore'
+import { collection, query, orderBy, onSnapshot, getDocs, deleteDoc, doc } from 'firebase/firestore'
 import { db } from '../firebaseConfig'
 import PDFGenerator from '../utils/PDFGenerator'
 
@@ -202,8 +202,15 @@ function CustomerInvoiceCreation({ setActiveSection }) {
     setCommissionValue(invoice.commissionValue || 0)
     // Load supplier cost and commission distribution
     setTotalPartsSupplierCost(invoice.partsSupplierCost || 0)
-    setSelectedMechanicForCommission(invoice.selectedMechanicForCommission || null)
-    setCommissionDistributionType(invoice.commissionDistribution || 'individual')
+    
+    // Handle commission distribution - find the mechanic object if we have an ID
+    const mechanicId = invoice.selectedMechanicForCommission
+    const mechanicObj = mechanicId && typeof mechanicId === 'string' 
+      ? mechanics.find(m => m.id === mechanicId) 
+      : mechanicId // Already an object
+    setSelectedMechanicForCommission(mechanicObj || null)
+    
+    setCommissionDistributionType(invoice.commissionDistributionType || 'individual')
     setTeamMembers(invoice.teamMembers || [{ mechanicId: null, percentage: 50 }, { mechanicId: null, percentage: 50 }])
     
     console.log('🔴 About to call setShowEditInvoiceModal(true)')
@@ -257,6 +264,26 @@ function CustomerInvoiceCreation({ setActiveSection }) {
     } catch (error) {
       console.error('❌ Error generating PDF:', error)
       alert('Error generating PDF. Please try again.')
+    }
+  }
+
+  const deleteInvoice = async (invoice) => {
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete invoice ${invoice.invoiceNumber}?\n\n` +
+      `Customer: ${invoice.customerName}\n` +
+      `Amount: ${formatCurrency(invoice.customerTotal || invoice.total)}\n\n` +
+      `This action cannot be undone.`
+    )
+
+    if (!confirmDelete) return
+
+    try {
+      await deleteDoc(doc(db, 'customer_invoices', invoice.id))
+      console.log('✅ Invoice deleted successfully:', invoice.id)
+      alert('Invoice deleted successfully!')
+    } catch (error) {
+      console.error('❌ Error deleting invoice:', error)
+      alert('Error deleting invoice. Please try again.')
     }
   }
 
@@ -419,8 +446,24 @@ function CustomerInvoiceCreation({ setActiveSection }) {
         commissionBase: totals.commissionBase,
         commissionDistributionType: commissionDistributionType,
         commissionDistribution: commissionDistributionType === 'individual' 
-          ? { mechanic: selectedMechanicForCommission, percentage: 100 }
-          : { teamMembers: teamMembers.map(tm => ({ mechanicId: tm.mechanic?.id, mechanicName: tm.mechanic?.name, percentage: tm.percentage })) },
+          ? { 
+              mechanic: selectedMechanicForCommission || null, 
+              percentage: 100 
+            }
+          : { 
+              teamMembers: teamMembers
+                .filter(tm => tm.mechanic) // Only include team members with assigned mechanics
+                .map(tm => ({ 
+                  mechanicId: tm.mechanic?.id || null, 
+                  mechanicName: tm.mechanic?.name || '', 
+                  percentage: tm.percentage || 0 
+                })) 
+            },
+        selectedMechanicForCommission: selectedMechanicForCommission?.id || null,
+        teamMembers: teamMembers.map(tm => ({ 
+          mechanicId: tm.mechanic?.id || null, 
+          percentage: tm.percentage || 0 
+        })),
         dateCreated: new Date(),
         dueDate: new Date(Date.now() + paymentTerms * 24 * 60 * 60 * 1000)
       }
@@ -477,10 +520,33 @@ function CustomerInvoiceCreation({ setActiveSection }) {
         partsRevenue: totals.partsRevenue,
         commissionBase: totals.commissionBase,
         // Commission distribution
-        selectedMechanicForCommission: selectedMechanicForCommission,
-        commissionDistribution: commissionDistribution,
-        teamMembers: teamMembers,
-        dueDate: new Date(selectedInvoiceForEdit.dateCreated.getTime() + paymentTerms * 24 * 60 * 60 * 1000)
+        commissionDistributionType: commissionDistributionType,
+        commissionDistribution: commissionDistributionType === 'individual' 
+          ? { 
+              mechanic: selectedMechanicForCommission || null, 
+              percentage: 100 
+            }
+          : { 
+              teamMembers: teamMembers
+                .filter(tm => tm.mechanic) // Only include team members with assigned mechanics
+                .map(tm => ({ 
+                  mechanicId: tm.mechanic?.id || null, 
+                  mechanicName: tm.mechanic?.name || '', 
+                  percentage: tm.percentage || 0 
+                })) 
+            },
+        selectedMechanicForCommission: selectedMechanicForCommission?.id || null,
+        teamMembers: teamMembers.map(tm => ({ 
+          mechanicId: tm.mechanic?.id || null, 
+          percentage: tm.percentage || 0 
+        })),
+        dueDate: (() => {
+          // Handle both Date objects and Firestore Timestamps
+          const dateCreated = selectedInvoiceForEdit.dateCreated?.toDate 
+            ? selectedInvoiceForEdit.dateCreated.toDate() 
+            : new Date(selectedInvoiceForEdit.dateCreated)
+          return new Date(dateCreated.getTime() + paymentTerms * 24 * 60 * 60 * 1000)
+        })()
       }
 
       await updateCustomerInvoice(selectedInvoiceForEdit.id, updatedData)
@@ -660,6 +726,12 @@ function CustomerInvoiceCreation({ setActiveSection }) {
                               className="text-primary-red hover:text-red-dark font-medium"
                             >
                               Download
+                            </button>
+                            <button
+                              onClick={() => deleteInvoice(invoice)}
+                              className="text-red-600 hover:text-red-800 font-medium"
+                            >
+                              Delete
                             </button>
                           </div>
                         </td>

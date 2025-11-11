@@ -90,7 +90,7 @@ export class AtomicOperations {
         const invoiceRef = doc(db, 'invoices', invoiceId)
         const updatedInvoice = {
           ...modifiedInvoice,
-          dateCreated: timestamp, // Update invoice date to today when editing
+          dateCreated: originalInvoice.dateCreated || modifiedInvoice.dateCreated || timestamp, // Preserve original date
           updatedAt: timestamp,
           editCount: (originalInvoice.editCount || 0) + 1,
           lastEditedAt: timestamp,
@@ -102,7 +102,7 @@ export class AtomicOperations {
             editType: 'advanced_edit'
           }
         }
-        batch.update(invoiceRef, updatedInvoice)
+        batch.set(invoiceRef, updatedInvoice, { merge: true })
 
         // Step 5: Update affected parts stock with enhanced tracking
         const stockUpdates = []
